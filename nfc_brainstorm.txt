@@ -1,0 +1,7 @@
+uses AI to analyze anonymized, aggregated data (incident types, departments, keywords from narratives) to generate a real-time "Cultural Health Score" 
+
+The AI agent analyzes patterns across all anonymized reports to predict potential "hotspots."
+
+Plot a map of active cases, pending cases, 
+
+Send an email or a WhatsApp message regarding the helpline number specially dedicated to them and also send a related ngo contact details
