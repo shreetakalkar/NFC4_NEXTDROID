@@ -8,7 +8,6 @@ import {
   orderBy,
   query,
   GeoPoint,
-  // CORRECTED: Import 'doc' and 'getDoc' for fetching single documents
   doc,
   getDoc,
 } from "firebase/firestore";
@@ -57,7 +56,6 @@ import Image from "next/image";
 type CaseStatus = "pending" | "investigating" | "resolved";
 type CasePriority = "low" | "medium" | "high" | "urgent";
 
-// CORRECTED: Added reporter details to the Case interface
 interface Case {
   id: string;
   name: string;
@@ -92,12 +90,8 @@ export function CasesList({
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Note: The contact form state is preserved but the form itself was missing from your provided JSX.
   const [contactMessage, setContactMessage] = useState<string>("");
   const [contactMethod, setContactMethod] = useState<string>("email");
-  
-  // CORRECTED: Removed the single 'user' state, as user data is now part of each case.
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -108,26 +102,28 @@ export function CasesList({
         const q = query(casesCollectionRef, orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
 
-        // CORRECTED: Use Promise.all to wait for all async operations inside the map to finish.
         const casesFromDb = await Promise.all(
           querySnapshot.docs.map(async (docSnapshot) => {
             const data = docSnapshot.data();
             let reporterInfo = {};
 
-            // CORRECTED: Fetch user data only for non-anonymous cases and store it within the case object.
+            // Fetch user data only for non-anonymous cases
             if (!data.isAnonymous && data.uid) {
-              // CORRECTED: Use doc() to reference a single document.
-              const userDocRef = doc(db, "users", data.uid);
-              // CORRECTED: Use getDoc() to fetch the single document.
-              const userSnapshot = await getDoc(userDocRef);
+              try {
+                const userDocRef = doc(db, "users", data.uid);
+                const userSnapshot = await getDoc(userDocRef);
 
-              if (userSnapshot.exists()) {
-                const userData = userSnapshot.data();
-                reporterInfo = {
-                  reporterFirstName: userData.firstName,
-                  reporterLastName: userData.lastName,
-                  reporterPhone: userData.phoneNumber,
-                };
+                if (userSnapshot.exists()) {
+                  const userData = userSnapshot.data();
+                  reporterInfo = {
+                    reporterFirstName: userData.firstName || "",
+                    reporterLastName: userData.lastName || "",
+                    reporterPhone: userData.phoneNumber || "",
+                  };
+                  console.log(reporterInfo);
+                }
+              } catch (userError) {
+                console.error("Error fetching user data:", userError);
               }
             }
             
@@ -140,14 +136,24 @@ export function CasesList({
               return "Location not specified";
             };
 
+            // Handle status field - it can be boolean or string
+            const getStatusFromData = (statusData: any): CaseStatus => {
+              if (typeof statusData === "boolean") {
+                return statusData ? "resolved" : "pending";
+              }
+              if (typeof statusData === "string") {
+                return statusData.toLowerCase() as CaseStatus;
+              }
+              return "pending";
+            };
+
             return {
               id: docSnapshot.id,
-              // CORRECTED: Provide fallback values to prevent 'toLowerCase' on undefined.
               name: data.name || "No Title",
               description: data.description || "No description provided.",
-              status: (data.status?.toLowerCase() || "pending") as CaseStatus,
+              status: getStatusFromData(data.status),
               priority: (data.priority?.toLowerCase() || "low") as CasePriority,
-              isAnonymous: data.isAnonymous,
+              isAnonymous: data.isAnonymous || false,
               location: formatGeoPoint(
                 data.incidentLocation || data.currentLocation
               ),
@@ -157,7 +163,7 @@ export function CasesList({
               feedback: data.feedback,
               createdAt: data.createdAt?.toDate(),
               incidentDate: data.incidentDate?.toDate(),
-              ...reporterInfo, // Add the fetched reporter info to the case object
+              ...reporterInfo,
             } as Case;
           })
         );
@@ -174,7 +180,6 @@ export function CasesList({
   }, [t]);
 
   const getStatusColor = (status: CaseStatus) => {
-    // ... (no changes here)
     switch (status) {
       case "resolved":
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300";
@@ -187,7 +192,6 @@ export function CasesList({
   };
 
   const getPriorityColor = (priority: CasePriority) => {
-    // ... (no changes here)
     switch (priority) {
       case "urgent":
         return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300";
@@ -202,7 +206,6 @@ export function CasesList({
   };
 
   const getAttachmentCount = (case_: Case) => {
-    // ... (no changes here)
     const imageCount = case_.attachmentImage?.length || 0;
     const videoCount = case_.attachmentVideo?.length || 0;
     const audioCount = case_.attachmentAudio?.length || 0;
@@ -222,7 +225,6 @@ export function CasesList({
     alert(t("cases.contact_sent_successfully"));
   };
 
-  // This filter logic is now safe because 'cases' is an array of objects, not Promises.
   const filteredCases = cases.filter((case_) => {
     const matchesSearch =
       case_.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -233,32 +235,29 @@ export function CasesList({
   });
 
   if (isLoading) {
-    // ... (no changes here)
     return (
-        <div className="flex justify-center items-center p-10 text-muted-foreground">
-          <Loader2 className="h-8 w-8 animate-spin mr-3" />
-          {t("common.loading_cases")}
-        </div>
-      );
+      <div className="flex justify-center items-center p-10 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin mr-3" />
+        {t("common.loading_cases")}
+      </div>
+    );
   }
 
   if (error) {
-    // ... (no changes here)
     return (
-        <div className="flex flex-col justify-center items-center p-10 text-destructive">
-          <AlertCircle className="h-8 w-8 mb-2" />
-          <p>{error}</p>
-        </div>
-      );
+      <div className="flex flex-col justify-center items-center p-10 text-destructive">
+        <AlertCircle className="h-8 w-8 mb-2" />
+        <p>{error}</p>
+      </div>
+    );
   }
 
   if (!isLoading && filteredCases.length === 0) {
-    // ... (no changes here)
     return (
-        <div className="text-center p-10 text-muted-foreground">
-          {t("common.no_cases_found")}
-        </div>
-      );
+      <div className="text-center p-10 text-muted-foreground">
+        {t("common.no_cases_found")}
+      </div>
+    );
   }
 
   return (
@@ -266,10 +265,8 @@ export function CasesList({
       {filteredCases.map((case_) => (
         <Card
           key={case_.id}
-          // ... (no changes to JSX card structure)
           className="hover:shadow-lg transition-all border-pink-100 dark:border-pink-900/20 hover:border-pink-200 dark:hover:border-pink-800/30"
         >
-          {/* CardHeader and CardContent are unchanged until the contact dialog */}
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
@@ -353,7 +350,116 @@ export function CasesList({
                   </DialogTrigger>
                   {selectedCase && selectedCase.id === case_.id && (
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        {/* Evidence rendering logic remains the same */}
+                      <DialogHeader>
+                        <DialogTitle>{t("cases.evidence_files")}</DialogTitle>
+                        <DialogDescription>
+                          {t("cases.view_case_attachments")}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-6 py-4">
+                        {/* Image Attachments */}
+                        {selectedCase.attachmentImage &&
+                          selectedCase.attachmentImage.length > 0 && (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <ImageIcon className="h-5 w-5" />
+                                <h3 className="text-md font-medium">
+                                  Image Evidence
+                                </h3>
+                              </div>
+                              {selectedCase.attachmentImage.map(
+                                (imageUrl, index) => (
+                                  <div
+                                    key={`img-${index}`}
+                                    className="bg-muted rounded-lg overflow-hidden border"
+                                  >
+                                    <div className="relative w-full aspect-video">
+                                      <Image
+                                        src={imageUrl}
+                                        alt={`Image Evidence ${index + 1}`}
+                                        fill
+                                        style={{ objectFit: "contain" }}
+                                        className="rounded-lg"
+                                      />
+                                    </div>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
+
+                        {/* Video Attachments */}
+                        {selectedCase.attachmentVideo &&
+                          selectedCase.attachmentVideo.length > 0 && (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Video className="h-5 w-5" />
+                                <h3 className="text-md font-medium">
+                                  Video Evidence
+                                </h3>
+                              </div>
+                              {selectedCase.attachmentVideo.map(
+                                (videoUrl, index) => (
+                                  <div
+                                    key={`vid-${index}`}
+                                    className="bg-muted rounded-lg overflow-hidden border"
+                                  >
+                                    <video
+                                      src={videoUrl}
+                                      controls
+                                      className="w-full aspect-video rounded-lg"
+                                    >
+                                      Your browser does not support the video
+                                      tag.
+                                    </video>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
+
+                        {/* Audio Attachments */}
+                        {selectedCase.attachmentAudio &&
+                          selectedCase.attachmentAudio.length > 0 && (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Volume2 className="h-5 w-5" />
+                                <h3 className="text-md font-medium">
+                                  Audio Evidence
+                                </h3>
+                              </div>
+                              {selectedCase.attachmentAudio.map(
+                                (audioUrl, index) => (
+                                  <div
+                                    key={`aud-${index}`}
+                                    className="bg-muted rounded-lg overflow-hidden border p-4"
+                                  >
+                                    <audio
+                                      src={audioUrl}
+                                      controls
+                                      className="w-full"
+                                    >
+                                      Your browser does not support the audio
+                                      tag.
+                                    </audio>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
+
+                        {/* No attachments */}
+                        {(!selectedCase.attachmentImage ||
+                          selectedCase.attachmentImage.length === 0) &&
+                          (!selectedCase.attachmentVideo ||
+                            selectedCase.attachmentVideo.length === 0) &&
+                          (!selectedCase.attachmentAudio ||
+                            selectedCase.attachmentAudio.length === 0) && (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                              {t("cases.no_evidence_provided")}
+                            </p>
+                          )}
+                      </div>
                     </DialogContent>
                   )}
                 </Dialog>
@@ -384,16 +490,14 @@ export function CasesList({
                           <DialogTitle>
                             {t("cases.contact_case_owner")}
                           </DialogTitle>
-                          {/* CORRECTED: Pull reporter info from the selectedCase object */}
                           <DialogDescription>
                             Name: {`${selectedCase.reporterFirstName || ""} ${
                               selectedCase.reporterLastName || ""
-                            }`}
+                            }`.trim() || "Not provided"}
                             <br />
-                            Phone No.: {`${selectedCase.reporterPhone || "Not provided"}`}
+                            Phone No.: {selectedCase.reporterPhone || "Not provided"}
                           </DialogDescription>
                         </DialogHeader>
-                        {/* You would add the contact form fields (Textarea, Select, Button) here */}
                       </DialogContent>
                     )}
                   </Dialog>

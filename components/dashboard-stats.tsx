@@ -21,7 +21,7 @@ export function DashboardStats() {
       try {
         const [caseStats, users] = await Promise.all([caseService.getStats(), userService.getAll()])
 
-        const activeUsers = users.filter((user) => user.status === "active").length
+        const activeUsers = users.length
         const resolutionRate = caseStats.total > 0 ? Math.round((caseStats.resolved / caseStats.total) * 100) : 0
 
         setStats({
