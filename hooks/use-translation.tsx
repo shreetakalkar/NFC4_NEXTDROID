@@ -40,8 +40,7 @@ export function TranslationProvider({
 
   const handleSetLanguage = (lang: SupportedLanguage) => {
     setLanguage(lang);
-    // Note: localStorage removed for Claude.ai compatibility
-    // In a real app, you might use cookies, server-side storage, or URL params
+   
   };
 
   // Memoize the translation function for better performance
