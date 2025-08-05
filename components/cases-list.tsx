@@ -1,7 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,38 +19,149 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Eye, MessageSquare, Clock, MapPin, Calendar, Heart } from "lucide-react"
-import { useTranslation } from "@/hooks/use-translation"
-import { caseService, type Case } from "@/lib/firestore-service"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Eye,
+  MessageSquare,
+  Clock,
+  MapPin,
+  Calendar,
+  Heart,
+} from "lucide-react"
 
-interface CasesListProps {
-  searchQuery: string
-  statusFilter: string
+// -------------------- Types --------------------
+type CaseStatus = "pending" | "investigating" | "resolved"
+type CasePriority = "low" | "medium" | "high" | "urgent"
+
+interface Case {
+  id: string
+  caseNumber: string
+  title: string
+  description: string
+  status: CaseStatus
+  priority: CasePriority
+  isAnonymous: boolean
+  location: string
+  lastUpdate: string
+  submittedAt: Date
+  evidenceCount: number
 }
 
-export function CasesList({ searchQuery, statusFilter }: CasesListProps) {
-  const { t } = useTranslation()
-  const [cases, setCases] = useState<Case[]>([])
-  const [loading, setLoading] = useState(true)
+interface CasesListProps {
+  searchQuery?: string
+  statusFilter?: "all" | CaseStatus
+}
+
+// -------------------- Mock translation --------------------
+const t = (key: string) => {
+  const translations: Record<string, string> = {
+    "priority.urgent": "Urgent",
+    "priority.high": "High",
+    "priority.medium": "Medium",
+    "priority.low": "Low",
+    "status.pending": "Pending",
+    "status.investigating": "Investigating",
+    "status.resolved": "Resolved",
+    "cases.anonymous": "Anonymous",
+    "cases.evidence_items": "evidence items",
+    "cases.view_details": "View Details",
+    "cases.status": "Status",
+    "cases.priority": "Priority",
+    "cases.description": "Description",
+    "cases.add_note": "Add Note",
+    "cases.note_placeholder": "Add your notes here...",
+    "cases.update_case": "Update Case",
+    "cases.contact": "Contact",
+    "common.cancel": "Cancel",
+  }
+  return translations[key] || key
+}
+
+// -------------------- Sample data --------------------
+const sampleCases: Case[] = [
+  {
+    id: "1",
+    caseNumber: "DV-2024-001",
+    title: "Domestic Violence Report - Urgent Assistance Needed",
+    description:
+      "Ongoing domestic violence situation requiring immediate intervention. Victim has reported escalating threats and physical abuse.",
+    status: "investigating",
+    priority: "urgent",
+    isAnonymous: true,
+    location: "Downtown District",
+    lastUpdate: "2 hours ago",
+    submittedAt: new Date("2024-01-15"),
+    evidenceCount: 3,
+  },
+  {
+    id: "2",
+    caseNumber: "DV-2024-002",
+    title: "Workplace Harassment Case",
+    description:
+      "Employee reporting consistent harassment and inappropriate behavior from supervisor. Multiple incidents documented.",
+    status: "pending",
+    priority: "high",
+    isAnonymous: false,
+    location: "Business District",
+    lastUpdate: "1 day ago",
+    submittedAt: new Date("2024-01-14"),
+    evidenceCount: 5,
+  },
+  {
+    id: "3",
+    caseNumber: "DV-2024-003",
+    title: "Child Safety Concern",
+    description:
+      "Neighbor reported concerning behavior and potential neglect. Child welfare assessment requested.",
+    status: "resolved",
+    priority: "high",
+    isAnonymous: true,
+    location: "Residential Area North",
+    lastUpdate: "3 days ago",
+    submittedAt: new Date("2024-01-10"),
+    evidenceCount: 2,
+  },
+  {
+    id: "4",
+    caseNumber: "DV-2024-004",
+    title: "Elder Abuse Investigation",
+    description:
+      "Family member suspected of financial and emotional abuse of elderly parent. Investigation ongoing.",
+    status: "investigating",
+    priority: "medium",
+    isAnonymous: false,
+    location: "Suburban West",
+    lastUpdate: "5 days ago",
+    submittedAt: new Date("2024-01-08"),
+    evidenceCount: 4,
+  },
+  {
+    id: "5",
+    caseNumber: "DV-2024-005",
+    title: "Stalking and Harassment",
+    description:
+      "Individual reporting persistent stalking behavior and unwanted contact from former partner.",
+    status: "pending",
+    priority: "medium",
+    isAnonymous: true,
+    location: "City Center",
+    lastUpdate: "1 week ago",
+    submittedAt: new Date("2024-01-05"),
+    evidenceCount: 6,
+  },
+]
+
+// -------------------- Main Component --------------------
+export function CasesList({ searchQuery = "", statusFilter = "all" }: CasesListProps) {
   const [selectedCase, setSelectedCase] = useState<Case | null>(null)
 
-  useEffect(() => {
-    const fetchCases = async () => {
-      try {
-        const fetchedCases = await caseService.getAll()
-        setCases(fetchedCases)
-      } catch (error) {
-        console.error("Error fetching cases:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchCases()
-  }, [])
-
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: CaseStatus) => {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
@@ -57,7 +174,7 @@ export function CasesList({ searchQuery, statusFilter }: CasesListProps) {
     }
   }
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: CasePriority) => {
     switch (priority) {
       case "urgent":
         return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300"
@@ -72,7 +189,7 @@ export function CasesList({ searchQuery, statusFilter }: CasesListProps) {
     }
   }
 
-  const filteredCases = cases.filter((case_) => {
+  const filteredCases = sampleCases.filter((case_) => {
     const matchesSearch =
       case_.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       case_.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -80,91 +197,60 @@ export function CasesList({ searchQuery, statusFilter }: CasesListProps) {
     return matchesSearch && matchesStatus
   })
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-4 bg-pink-200 rounded w-3/4"></div>
-              <div className="h-3 bg-pink-100 rounded w-1/2"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-3 bg-pink-100 rounded w-full"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4">
       {filteredCases.map((case_) => (
-        <Card
-          key={case_.id}
-          className="hover:shadow-lg transition-all duration-200 border-pink-100 dark:border-pink-900/20 hover:border-pink-200 dark:hover:border-pink-800/30"
-        >
+        <Card key={case_.id} className="hover:shadow-lg transition-all border-pink-100 dark:border-pink-900/20 hover:border-pink-200 dark:hover:border-pink-800/30">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center flex-wrap gap-2">
                   <CardTitle className="text-lg text-gray-900 dark:text-gray-100">{case_.title}</CardTitle>
                   <Badge className={getPriorityColor(case_.priority)}>{t(`priority.${case_.priority}`)}</Badge>
                   <Badge className={getStatusColor(case_.status)}>{t(`status.${case_.status}`)}</Badge>
                   {case_.isAnonymous && (
-                    <Badge
-                      variant="outline"
-                      className="border-pink-200 text-pink-700 dark:border-pink-800 dark:text-pink-300"
-                    >
+                    <Badge variant="outline" className="border-pink-200 text-pink-700 dark:border-pink-800 dark:text-pink-300">
                       {t("cases.anonymous")}
                     </Badge>
                   )}
                 </div>
                 <CardDescription className="text-gray-600 dark:text-gray-400">{case_.description}</CardDescription>
               </div>
-              <div className="text-right text-sm text-muted-foreground">
-                <div className="flex items-center space-x-1">
+              <div className="text-sm text-muted-foreground text-right">
+                <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  <span>{case_.lastUpdate || "Recently"}</span>
+                  <span>{case_.lastUpdate}</span>
                 </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                <div className="flex items-center space-x-1">
+            <div className="flex justify-between flex-wrap gap-4 items-center">
+              <div className="flex gap-4 text-sm text-muted-foreground items-center flex-wrap">
+                <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  <span>{case_.submittedAt.toDate().toLocaleDateString()}</span>
+                  <span>{case_.submittedAt.toLocaleDateString()}</span>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-1">
                   <MapPin className="h-4 w-4" />
                   <span>{case_.location}</span>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-1">
                   <Eye className="h-4 w-4" />
-                  <span>
-                    {case_.evidenceCount || 0} {t("cases.evidence_items")}
-                  </span>
+                  <span>{case_.evidenceCount} {t("cases.evidence_items")}</span>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedCase(case_)}
-                      className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setSelectedCase(case_)} className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20">
                       <Eye className="h-4 w-4 mr-2" />
                       {t("cases.view_details")}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle className="flex items-center space-x-2">
+                      <DialogTitle className="flex items-center gap-2">
                         <Heart className="h-5 w-5 text-pink-600" />
                         <span>{case_.title}</span>
                       </DialogTitle>
@@ -175,9 +261,7 @@ export function CasesList({ searchQuery, statusFilter }: CasesListProps) {
                         <div>
                           <label className="text-sm font-medium">{t("cases.status")}</label>
                           <Select defaultValue={case_.status}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="pending">{t("status.pending")}</SelectItem>
                               <SelectItem value="investigating">{t("status.investigating")}</SelectItem>
@@ -188,9 +272,7 @@ export function CasesList({ searchQuery, statusFilter }: CasesListProps) {
                         <div>
                           <label className="text-sm font-medium">{t("cases.priority")}</label>
                           <Select defaultValue={case_.priority}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="low">{t("priority.low")}</SelectItem>
                               <SelectItem value="medium">{t("priority.medium")}</SelectItem>
@@ -208,7 +290,7 @@ export function CasesList({ searchQuery, statusFilter }: CasesListProps) {
                         <label className="text-sm font-medium">{t("cases.add_note")}</label>
                         <Textarea placeholder={t("cases.note_placeholder")} className="mt-1" />
                       </div>
-                      <div className="flex justify-end space-x-2">
+                      <div className="flex justify-end gap-2">
                         <Button variant="outline">{t("common.cancel")}</Button>
                         <Button className="bg-pink-600 hover:bg-pink-700">{t("cases.update_case")}</Button>
                       </div>
