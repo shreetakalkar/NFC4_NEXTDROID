@@ -64,14 +64,14 @@ export function UserManagement() {
       : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300"
   }
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.organization.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesRole = roleFilter === "all" || user.role === roleFilter
-    return matchesSearch && matchesRole
-  })
+  // const filteredUsers = users.filter((user) => {
+    // const matchesSearch =
+      // user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      // user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      // user.organization.toLowerCase().includes(searchQuery.toLowerCase())
+    // const matchesRole = roleFilter === "all" || user.role === roleFilter
+    // return matchesSearch && matchesRole
+  // })
 
   if (loading) {
     return (

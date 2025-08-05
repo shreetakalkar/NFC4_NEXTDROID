@@ -55,10 +55,7 @@
     "react-dom": "^19",
     "react-hook-form": "^7.60.0",
     "react-leaflet": "^5.0.0",
-<<<<<<< Updated upstream
     "react-leaflet-cluster": "^3.1.0",
-=======
->>>>>>> Stashed changes
     "react-leaflet-markercluster": "5.0.0-rc.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",

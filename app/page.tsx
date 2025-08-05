@@ -297,7 +297,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-<<<<<<< Updated upstream
           <TabsContent value="map" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
@@ -310,10 +309,6 @@ export default function AdminDashboard() {
             </div>
             <MapPinIcon />
             <Map />
-=======
-          <TabsContent value="maps" className="space-y-6">
-                <Map />
->>>>>>> Stashed changes
           </TabsContent>
         </Tabs>
       </div>
