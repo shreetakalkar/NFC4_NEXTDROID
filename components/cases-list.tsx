@@ -154,7 +154,7 @@ export function CasesList({
                 <div className="flex items-center flex-wrap gap-2">
                   <CardTitle className="text-lg text-gray-900 dark:text-gray-100">{case_.name}</CardTitle>
                   <Badge className={getPriorityColor(case_.priority)}>{t(`priority.${case_.priority}`)}</Badge>
-                  <Badge className={getStatusColor(case_.status)}>{t(`status.${case_.status}`)}</Badge>
+                  <Badge className={getStatusColor(case_.status)}>{t(`status : ${case_.status}`)}</Badge>
                   {case_.isAnonymous && <Badge variant="outline" className="border-pink-200 text-pink-700 dark:border-pink-800 dark:text-pink-300">{t("cases.anonymous")}</Badge>}
                 </div>
                 <CardDescription className="text-gray-600 dark:text-gray-400">{case_.description}</CardDescription>
