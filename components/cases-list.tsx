@@ -52,6 +52,7 @@ import {
   Volume2,
 } from "lucide-react";
 import Image from "next/image";
+import storeSeverityIndex from "@/lib/storeSeverityIndex";
 
 type CaseStatus = "pending" | "investigating" | "resolved";
 type CasePriority = "low" | "medium" | "high" | "urgent";
@@ -101,10 +102,47 @@ export function CasesList({
         const casesCollectionRef = collection(db, "cases");
         const q = query(casesCollectionRef, orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
-
+        
         const casesFromDb = await Promise.all(
           querySnapshot.docs.map(async (docSnapshot) => {
             const data = docSnapshot.data();
+            
+            console.log(`Processing case ${docSnapshot.id}:`, {
+              hasPriority: !!data.priority,
+              hasPanicScore: !!data.panicScore,
+              description: data.description?.substring(0, 100) + "..."
+            });
+
+            // Check if we need to generate priority and panicScore
+            if ((!data.priority || !data.panicScore) && data.description) {
+              console.log(`Calling storeSeverityIndex for case: ${docSnapshot.id}`);
+              
+              try {
+                const success = await storeSeverityIndex(docSnapshot.id, data.description);
+                console.log(`storeSeverityIndex result for ${docSnapshot.id}:`, success);
+                
+                if (success) {
+                  // Refetch the document to get the updated data
+                  const updatedDocRef = doc(db, "cases", docSnapshot.id);
+                  const updatedDoc = await getDoc(updatedDocRef);
+                  
+                  if (updatedDoc.exists()) {
+                    const updatedData = updatedDoc.data();
+                    console.log(`Updated data for ${docSnapshot.id}:`, {
+                      priority: updatedData.priority,
+                      panicScore: updatedData.panicScore
+                    });
+                    
+                    // Use the updated data
+                    data.priority = updatedData.priority || data.priority;
+                    data.panicScore = updatedData.panicScore || data.panicScore;
+                  }
+                }
+              } catch (error) {
+                console.error(`Failed to store severity index for ${docSnapshot.id}:`, error);
+              }
+            }
+
             let reporterInfo = {};
 
             // Fetch user data only for non-anonymous cases
@@ -120,7 +158,7 @@ export function CasesList({
                     reporterLastName: userData.lastName || "",
                     reporterPhone: userData.phoneNumber || "",
                   };
-                  console.log(reporterInfo);
+                  console.log("Reporter info:", reporterInfo);
                 }
               } catch (userError) {
                 console.error("Error fetching user data:", userError);
@@ -147,7 +185,7 @@ export function CasesList({
               return "pending";
             };
 
-            return {
+            const caseObj = {
               id: docSnapshot.id,
               name: data.name || "No Title",
               description: data.description || "No description provided.",
@@ -165,9 +203,18 @@ export function CasesList({
               incidentDate: data.incidentDate?.toDate(),
               ...reporterInfo,
             } as Case;
+
+            console.log(`Final case object for ${docSnapshot.id}:`, {
+              priority: caseObj.priority,
+              hasPanicScore: !!data.panicScore
+            });
+
+            return caseObj;
           })
         );
+        
         setCases(casesFromDb);
+        console.log("All cases processed:", casesFromDb.length);
       } catch (err) {
         console.error("Firebase fetch error:", err);
         setError(t("common.error_fetching_cases"));
