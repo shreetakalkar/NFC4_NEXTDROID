@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle, Shield, Users, FileText, Clock, Eye, Search, Filter, Heart, Sparkles } from "lucide-react"
+import { AlertTriangle, Shield, Users, FileText, Clock, Eye, Search, Filter, Heart, Sparkles, MapPin, MapPinIcon } from "lucide-react"
 import { DashboardStats } from "@/components/dashboard-stats"
 import { CasesList } from "@/components/cases-list"
 import { EvidenceVault } from "@/components/evidence-vault"
@@ -16,6 +16,7 @@ import { LanguageSelector } from "@/components/language-selector"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useTranslation } from "@/hooks/use-translation"
 import { initializeSampleData, caseService } from "@/lib/firestore-service"
+import Map from "@/components/Map"
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -96,7 +97,7 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-white/50 dark:bg-gray-900/50 border border-pink-100 dark:border-pink-900/20">
+          <TabsList className="grid w-full grid-cols-6 bg-white/50 dark:bg-gray-900/50 border border-pink-100 dark:border-pink-900/20">
             <TabsTrigger
               value="overview"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
@@ -126,6 +127,12 @@ export default function AdminDashboard() {
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
             >
               {t("nav.reports")}
+            </TabsTrigger>
+            <TabsTrigger
+              value="map"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
+            >
+              {t("nav.maps")}
             </TabsTrigger>
           </TabsList>
 
@@ -289,6 +296,19 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+          <TabsContent value="map" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                {t("maps.title")}
+              </h2>
+              <Button className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600">
+                <MapPin className="h-4 w-4 mr-2" />
+                {t("maps.view_full")}
+              </Button>
+            </div>
+            <MapPinIcon />
+            <Map />
           </TabsContent>
         </Tabs>
       </div>

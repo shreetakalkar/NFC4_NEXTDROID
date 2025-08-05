@@ -25,6 +25,7 @@ interface Translations {
     evidence: string;
     users: string;
     reports: string;
+    maps : string;
   };
   auth: {
     logout: string;
@@ -152,7 +153,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "Cases",
       evidence: "Evidence",
       users: "Users",
-      reports: "Reports"
+      reports: "Reports",
+      maps: "Map"
     },
     auth: {
       logout: "Logout"
@@ -278,7 +280,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "मामले",
       evidence: "साक्ष्य",
       users: "उपयोगकर्ता",
-      reports: "रिपोर्ट"
+      reports: "रिपोर्ट",
+      maps: "नक्शा"
     },
     auth: {
       logout: "लॉगआउट"
@@ -404,7 +407,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "মামলা",
       evidence: "প্রমাণ",
       users: "ব্যবহারকারী",
-      reports: "রিপোর্ট"
+      reports: "রিপোর্ট",
+      maps: "মানচিত্র"
     },
     auth: {
       logout: "লগআউট"
@@ -530,7 +534,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "కేసులు",
       evidence: "సాక్ష్యం",
       users: "వినియోగదారులు",
-      reports: "నివేదికలు"
+      reports: "నివేదికలు",
+      maps : "పటం"
     },
     auth: {
       logout: "లాగ్అవుట్"
@@ -656,7 +661,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "प्रकरणे",
       evidence: "पुरावे",
       users: "वापरकर्ते",
-      reports: "अहवाल"
+      reports: "अहवाल",
+      maps : "नकाशा"
     },
     auth: {
       logout: "लॉगआउट"
@@ -782,7 +788,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "வழக்குகள்",
       evidence: "சான்றுகள்",
       users: "பயனர்கள்",
-      reports: "அறிக்கைகள்"
+      reports: "அறிக்கைகள்",
+      maps : "வரைபடம்"
     },
     auth: {
       logout: "வெளியேறு"
@@ -908,7 +915,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "કેસો",
       evidence: "પુરાવા",
       users: "વપરાશકર્તાઓ",
-      reports: "રિપોર્ટ્સ"
+      reports: "રિપોર્ટ્સ",
+      maps : "નકશો"
     },
     auth: {
       logout: "લૉગઆઉટ"
@@ -1034,7 +1042,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "ಪ್ರಕರಣಗಳು",
       evidence: "ಸಾಕ್ಷ್ಯ",
       users: "ಬಳಕೆದಾರರು",
-      reports: "ವರದಿಗಳು"
+      reports: "ವರದಿಗಳು",
+      maps : "ನಕ್ಷೆ"
     },
     auth: {
       logout: "ಲಾಗ್‌ಔಟ್"
@@ -1160,7 +1169,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "കേസുകൾ",
       evidence: "തെളിവുകൾ",
       users: "ഉപയോക്താക്കൾ",
-      reports: "റിപ്പോർട്ടുകൾ"
+      reports: "റിപ്പോർട്ടുകൾ",
+      maps : "ഭൂപടം"
     },
     auth: {
       logout: "ലോഗൗട്ട്"
@@ -1286,7 +1296,8 @@ export const translations: Record<SupportedLanguage, Translations> = {
       cases: "ਕੇਸ",
       evidence: "ਸਬੂਤ",
       users: "ਯੂਜ਼ਰ",
-      reports: "ਰਿਪੋਰਟਾਂ"
+      reports: "ਰਿਪੋਰਟਾਂ",
+      maps : "ਨਕਸ਼ਾ"
     },
     auth: {
       logout: "ਲਾਗਆਉਟ"
