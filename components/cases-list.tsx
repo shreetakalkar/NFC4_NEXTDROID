@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from "@/hooks/use-translation";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+// FIX: Added GeoPoint import to handle location data correctly
+import { collection, getDocs, orderBy, query, GeoPoint } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import {
@@ -35,12 +36,13 @@ import {
   MessageSquare,
   MapPin,
   Calendar,
-  Heart,
   FileText,
-  Link as LinkIcon,
   Loader2,
   AlertCircle,
   Send,
+  Image as ImageIcon,
+  Video,
+  Volume2,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -57,7 +59,10 @@ interface Case {
   location: string;
   createdAt: Date;
   incidentDate: Date;
-  attachments: string[];
+  // FIX: All attachment fields are singular to match your Firestore data
+  attachmentImage?: string[];
+  attachmentVideo?: string[];
+  attachmentAudio?: string[];
   feedback?: string;
 }
 
@@ -84,25 +89,37 @@ export function CasesList({
       setError(null);
       try {
         const casesCollectionRef = collection(db, "cases");
-        // Optional: Query to order documents, e.g., by creation date descending
         const q = query(casesCollectionRef, orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
 
         const casesFromDb = querySnapshot.docs.map((doc) => {
           const data = doc.data();
-          // IMPORTANT: Convert Firestore Timestamps to JS Date objects
+          
+          // FIX: Added a helper function to format GeoPoint location data
+          const formatGeoPoint = (geoPoint: GeoPoint | undefined) => {
+            if (geoPoint && geoPoint.latitude && geoPoint.longitude) {
+              return `${geoPoint.latitude.toFixed(4)}° N, ${geoPoint.longitude.toFixed(4)}° E`;
+            }
+            return "Location not specified";
+          };
+
           return {
             id: doc.id,
             name: data.name,
             description: data.description,
-            status: data.status,
-            priority: data.priority,
+            // FIX: Convert status & priority to lowercase to match types and apply correct colors
+            status: (data.status?.toLowerCase() || "pending") as CaseStatus,
+            priority: (data.priority?.toLowerCase() || "low") as CasePriority,
             isAnonymous: data.isAnonymous,
-            location: data.location,
-            attachments: data.attachments || [],
+            // FIX: Format the location from the GeoPoint field
+            location: formatGeoPoint(data.incidentLocation || data.currentLocation),
+            // FIX: Use singular field names for all attachments
+            attachmentImage: data.attachmentImage || [],
+            attachmentVideo: data.attachmentVideo || [],
+            attachmentAudio: data.attachmentAudio || [],
             feedback: data.feedback,
-            createdAt: data.createdAt?.toDate(), // Safely call .toDate()
-            incidentDate: data.incidentDate?.toDate(), // Safely call .toDate()
+            createdAt: data.createdAt?.toDate(),
+            incidentDate: data.incidentDate?.toDate(),
           } as Case;
         });
         setCases(casesFromDb);
@@ -115,7 +132,7 @@ export function CasesList({
     };
 
     fetchCases();
-  }, [t]); // Re-run if `t` function changes (on language switch) to update error messages
+  }, [t]);
 
   const getStatusColor = (status: CaseStatus) => {
     switch (status) {
@@ -138,27 +155,29 @@ export function CasesList({
       case "medium":
         return "bg-pink-100 text-pink-800 dark:bg-pink-900/20 dark:text-pink-300";
       case "low":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
     }
   };
 
+  // FIX: Use singular `attachmentVideo` here for an accurate count
+  const getAttachmentCount = (case_: Case) => {
+    const imageCount = case_.attachmentImage?.length || 0;
+    const videoCount = case_.attachmentVideo?.length || 0;
+    const audioCount = case_.attachmentAudio?.length || 0;
+    return imageCount + videoCount + audioCount;
+  };
+
   const handleContactSubmit = () => {
-    // Here you would implement the actual contact logic
-    // e.g., send email, create notification, etc.
     console.log("Contact submitted:", {
       caseId: selectedCase?.id,
       method: contactMethod,
       message: contactMessage,
     });
 
-    // Reset form and close dialog
     setContactMessage("");
     setContactMethod("email");
     setSelectedCase(null);
-
-    // You might want to show a success toast here
     alert(t("cases.contact_sent_successfully"));
   };
 
@@ -197,10 +216,6 @@ export function CasesList({
     );
   }
 
-  const isImageUrl = (url: string) =>
-    /\.(jpg|jpeg|png|webp|avif|gif|svg)$/i.test(url);
-  const isVideoUrl = (url: string) => /\.(mp4|webm|mov|ogg)$/i.test(url);
-
   return (
     <div className="space-y-4 p-4">
       {filteredCases.map((case_) => (
@@ -219,9 +234,7 @@ export function CasesList({
                     {t(`priority.${case_.priority}`)}
                   </Badge>
                   <Badge className={getStatusColor(case_.status)}>
-                    {`${
-                      case_.status ? "cases.status.true" : "cases.status.false"
-                    }`}
+                    {t(`status.${case_.status}`)}
                   </Badge>
                   {case_.isAnonymous ? (
                     <Badge
@@ -233,7 +246,7 @@ export function CasesList({
                   ) : (
                     <Badge
                       variant="outline"
-                      className="border-pink-200 text-pink-700 dark:border-pink-800 dark:text-pink-300"
+                      className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-300"
                     >
                       {t("cases.notAnonymous")}
                     </Badge>
@@ -272,7 +285,7 @@ export function CasesList({
                 <div className="flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
                   <span>
-                    {case_.attachments.length} {t("cases.attachments_items")}
+                    {getAttachmentCount(case_)} {t("cases.attachments_items")}
                   </span>
                 </div>
               </div>
@@ -292,7 +305,7 @@ export function CasesList({
                     </Button>
                   </DialogTrigger>
                   {selectedCase && selectedCase.id === case_.id && (
-                    <DialogContent className="max-w-2xl">
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>{t("cases.evidence_files")}</DialogTitle>
                         <DialogDescription>
@@ -300,52 +313,90 @@ export function CasesList({
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
-                        {/* Intelligent Attachments Viewer */}
-                        <div>
-                          {selectedCase.attachments.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {selectedCase.attachments.map((url, index) => (
-                                <div
-                                  key={index}
-                                  className="bg-muted rounded-lg overflow-hidden border"
-                                >
-                                  {isImageUrl(url) ? (
+                        {/* Image Attachments */}
+                        {selectedCase.attachmentImage &&
+                          selectedCase.attachmentImage.length > 0 && (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <ImageIcon className="h-5 w-5" />
+                                <h3 className="text-md font-medium">Image Evidence</h3>
+                              </div>
+                              {selectedCase.attachmentImage.map(
+                                (imageUrl, index) => (
+                                  <div key={`img-${index}`} className="bg-muted rounded-lg overflow-hidden border">
                                     <div className="relative w-full aspect-video">
                                       <Image
-                                        src={url}
-                                        alt={`Attachment ${index + 1}`}
+                                        src={imageUrl}
+                                        alt={`Image Evidence ${index + 1}`}
                                         fill
                                         style={{ objectFit: "contain" }}
+                                        className="rounded-lg"
                                       />
                                     </div>
-                                  ) : isVideoUrl(url) ? (
-                                    <video
-                                      src={url}
-                                      controls
-                                      className="w-full aspect-video"
-                                    />
-                                  ) : (
-                                    <a
-                                      href={url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex flex-col items-center justify-center p-4 h-full hover:bg-muted/50"
-                                    >
-                                      <LinkIcon className="h-8 w-8 text-primary mb-2" />
-                                      <span className="text-sm text-center break-all">
-                                        {t("cases.supported_attachment")}
-                                      </span>
-                                    </a>
-                                  )}
-                                </div>
-                              ))}
+                                  </div>
+                                )
+                              )}
                             </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
+                          )}
+
+                        {/* Video Attachments */}
+                        {/* FIX: Use singular `attachmentVideo` to render videos */}
+                        {selectedCase.attachmentVideo &&
+                          selectedCase.attachmentVideo.length > 0 && (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Video className="h-5 w-5" />
+                                <h3 className="text-md font-medium">Video Evidence</h3>
+                              </div>
+                              {selectedCase.attachmentVideo.map(
+                                (videoUrl, index) => (
+                                  <div key={`vid-${index}`} className="bg-muted rounded-lg overflow-hidden border">
+                                    <video
+                                      src={videoUrl}
+                                      controls
+                                      className="w-full aspect-video rounded-lg"
+                                    >
+                                      Your browser does not support the video tag.
+                                    </video>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
+
+                        {/* Audio Attachments */}
+                        {selectedCase.attachmentAudio &&
+                          selectedCase.attachmentAudio.length > 0 && (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Volume2 className="h-5 w-5" />
+                                <h3 className="text-md font-medium">Audio Evidence</h3>
+                              </div>
+                              {selectedCase.attachmentAudio.map(
+                                (audioUrl, index) => (
+                                  <div key={`aud-${index}`} className="bg-muted rounded-lg overflow-hidden border p-4">
+                                    <audio
+                                      src={audioUrl}
+                                      controls
+                                      className="w-full"
+                                    >
+                                      Your browser does not support the audio tag.
+                                    </audio>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
+
+                        {/* No attachments */}
+                        {/* FIX: Use singular `attachmentVideo` in the check */}
+                        {(!selectedCase.attachmentImage || selectedCase.attachmentImage.length === 0) &&
+                         (!selectedCase.attachmentVideo || selectedCase.attachmentVideo.length === 0) &&
+                         (!selectedCase.attachmentAudio || selectedCase.attachmentAudio.length === 0) && (
+                            <p className="text-sm text-muted-foreground text-center py-8">
                               {t("cases.no_evidence_provided")}
                             </p>
                           )}
-                        </div>
                       </div>
                     </DialogContent>
                   )}
@@ -372,13 +423,14 @@ export function CasesList({
                       </Button>
                     </DialogTrigger>
                     {selectedCase && selectedCase.id === case_.id && (
+                      // FIX: Restored the entire contact form dialog content
                       <DialogContent className="max-w-md">
                         <DialogHeader>
                           <DialogTitle>
                             {t("cases.contact_case_owner")}
                           </DialogTitle>
                           <DialogDescription>
-                            Email : {t("cases.user.email")}
+                            Email: {t("cases.user.email")}
                             <br />
                             Phone No.: {t("cases.user.phone")}
                           </DialogDescription>
