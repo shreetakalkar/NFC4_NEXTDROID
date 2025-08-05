@@ -1,3 +1,4 @@
+// storeSeverityIndex.ts
 import aiResponse from "@/ai/summarise";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
@@ -40,7 +41,9 @@ export default async function storeSeverityIndex(uid: string, description: strin
       severityObj &&
       typeof severityObj === 'object' &&
       typeof severityObj.priority === 'string' &&
-      typeof severityObj.score === 'number'
+      typeof severityObj.score === 'number' &&
+      ['Low', 'Medium', 'High'].includes(severityObj.priority) &&
+      severityObj.score >= 0 && severityObj.score <= 100
     ) {
       await setDoc(
         docRef,
@@ -52,7 +55,6 @@ export default async function storeSeverityIndex(uid: string, description: strin
       );
 
       console.log("Severity index stored successfully for case:", uid);
-
       return true;
     } else {
       console.error("Invalid AI response structure:", severityObj);

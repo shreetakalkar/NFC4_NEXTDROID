@@ -1,46 +1,58 @@
-// ai/summarise.js
-"use client";
-// import dotenv from "dotenv";
-// dotenv.config();
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-
-
+// ai/summarise.js - Updated client-side version
 export default async function aiResponse(description) {
-  console.log(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `Evaluate this harassment report and return a JSON object with two fields: priority (Low/Medium/High) and score (0-100) based on severity.\n\n"${description}"` }],
-        },
-      ],
+    const response = await fetch('/api/analyze-severity', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ description }),
     });
 
-    const responseText = await result.response.text();
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-    try {
-      return JSON.parse(responseText);
-    } catch {
-      const priorityMatch = responseText.match(/priority\s*[:\-]?\s*(Low|Medium|High)/i);
-      const scoreMatch = responseText.match(/score\s*[:\-]?\s*(\d{1,3})/i);
-
-      if (priorityMatch && scoreMatch) {
-        return {
-          priority: priorityMatch[1],
-          score: parseInt(scoreMatch[1]),
-        };
-      } else {
-        throw new Error("Could not parse priority or score from AI response");
-      }
+    const result = await response.json();
+    
+    // Validate the response structure
+    if (result.priority && typeof result.score === 'number') {
+      return result;
+    } else {
+      throw new Error('Invalid response structure from API');
     }
   } catch (error) {
-    console.error("AI generation failed:", error);
-    throw error;
+    console.error('Failed to get AI response:', error);
+    
+    // Fallback to default severity
+    return getDefaultSeverity(description);
+  }
+}
+
+function getDefaultSeverity(description) {
+  const text = description.toLowerCase();
+  
+  // High severity keywords
+  const highSeverityKeywords = [
+    'threat', 'violence', 'kill', 'hurt', 'physical', 'assault', 
+    'stalk', 'follow', 'attack', 'weapon', 'dangerous', 'scared',
+    'fear', 'safety', 'police', 'emergency'
+  ];
+  
+  // Medium severity keywords  
+  const mediumSeverityKeywords = [
+    'repeated', 'continue', 'persistent', 'multiple', 'again',
+    'won\'t stop', 'keeps', 'harassment', 'inappropriate', 'uncomfortable'
+  ];
+  
+  const hasHighKeywords = highSeverityKeywords.some(keyword => text.includes(keyword));
+  const hasMediumKeywords = mediumSeverityKeywords.some(keyword => text.includes(keyword));
+  
+  if (hasHighKeywords) {
+    return { priority: "High", score: 75 };
+  } else if (hasMediumKeywords) {
+    return { priority: "Medium", score: 50 };
+  } else {
+    return { priority: "Low", score: 25 };
   }
 }
