@@ -281,11 +281,11 @@ export default function AdminDashboard() {
           <TabsContent value="map" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                {t("maps.title")}
+                {t("Map")}
               </h2>
               <Button className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600">
                 <MapPin className="h-4 w-4 mr-2" />
-                {t("maps.view_full")}
+                {t("Map full view ")}
               </Button>
             </div>
             <MapPinIcon />
