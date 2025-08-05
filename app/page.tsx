@@ -1,46 +1,71 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle, Shield, Users, FileText, Clock, Eye, Search, Filter, Heart, Sparkles, MapPin, MapPinIcon } from "lucide-react"
-import { DashboardStats } from "@/components/dashboard-stats"
-import { CasesList } from "@/components/cases-list"
-import { EvidenceVault } from "@/components/evidence-vault"
-import { UserManagement } from "@/components/user-management"
-import { LanguageSelector } from "@/components/language-selector"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { useTranslation } from "@/hooks/use-translation"
-import { initializeSampleData, caseService } from "@/lib/firestore-service"
-import Map from "@/components/Map"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertTriangle,
+  Shield,
+  Users,
+  FileText,
+  Clock,
+  Eye,
+  Search,
+  Filter,
+  Heart,
+  Sparkles,
+  MapPin,
+  MapPinIcon,
+} from "lucide-react";
+import { DashboardStats } from "@/components/dashboard-stats";
+import { CasesList } from "@/components/cases-list";
+import { EvidenceVault } from "@/components/evidence-vault";
+import { UserManagement } from "@/components/user-management";
+import { LanguageSelector } from "@/components/language-selector";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useTranslation } from "@/hooks/use-translation";
+import { initializeSampleData, caseService } from "@/lib/firestore-service";
+import Map from "@/components/Map";
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [isInitialized, setIsInitialized] = useState(false)
-  const [urgentCases, setUrgentCases] = useState<any[]>([])
-  const { t, language } = useTranslation()
+  const [activeTab, setActiveTab] = useState("overview");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [urgentCases, setUrgentCases] = useState<any[]>([]);
+  const { t, language } = useTranslation();
 
   useEffect(() => {
     const initializeData = async () => {
       try {
-        await initializeSampleData()
-        const urgent = await caseService.getUrgentCases()
-        setUrgentCases(urgent)
-        setIsInitialized(true)
+        await initializeSampleData();
+        const urgent = await caseService.getUrgentCases();
+        setUrgentCases(urgent);
+        setIsInitialized(true);
       } catch (error) {
-        console.error("Error initializing data:", error)
-        setIsInitialized(true)
+        console.error("Error initializing data:", error);
+        setIsInitialized(true);
       }
-    }
+    };
 
-    initializeData()
-  }, [])
+    initializeData();
+  }, []);
 
   if (!isInitialized) {
     return (
@@ -50,12 +75,16 @@ export default function AdminDashboard() {
             <Heart className="h-8 w-8 text-white" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Initializing System</h2>
-            <p className="text-gray-600 dark:text-gray-400">Setting up your secure workspace...</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Initializing System
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              Setting up your secure workspace...
+            </p>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -96,7 +125,11 @@ export default function AdminDashboard() {
       </header>
 
       <div className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-4 bg-white/50 dark:bg-gray-900/50 border border-pink-100 dark:border-pink-900/20">
             <TabsTrigger
               value="overview"
@@ -134,7 +167,9 @@ export default function AdminDashboard() {
                     <AlertTriangle className="h-5 w-5 text-orange-500" />
                     <span>{t("dashboard.urgent_cases")}</span>
                   </CardTitle>
-                  <CardDescription>{t("dashboard.urgent_cases_desc")}</CardDescription>
+                  <CardDescription>
+                    {t("dashboard.urgent_cases_desc")}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -144,10 +179,14 @@ export default function AdminDashboard() {
                         className="flex items-center justify-between p-3 border rounded-lg border-pink-100 dark:border-pink-900/20 bg-white/50 dark:bg-gray-800/50"
                       >
                         <div>
-                          <p className="font-medium">{case_.caseNumber || `Case #${index + 1}001`}</p>
+                          <p className="font-medium">
+                            {case_.caseNumber || `Case #${index + 1}001`}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             Submitted{" "}
-                            {case_.submittedAt ? case_.submittedAt.toDate().toLocaleDateString() : "2 hours ago"}
+                            {case_.submittedAt
+                              ? case_.submittedAt.toDate().toLocaleDateString()
+                              : "2 hours ago"}
                           </p>
                         </div>
                         <Badge
@@ -168,20 +207,38 @@ export default function AdminDashboard() {
                     <Clock className="h-5 w-5 text-blue-500" />
                     <span>{t("dashboard.recent_activity")}</span>
                   </CardTitle>
-                  <CardDescription>{t("dashboard.recent_activity_desc")}</CardDescription>
+                  <CardDescription>
+                    {t("dashboard.recent_activity_desc")}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {[
-                      { action: "New case submitted", time: "5 min ago", type: "case" },
-                      { action: "Evidence uploaded", time: "15 min ago", type: "evidence" },
-                      { action: "Case status updated", time: "1 hour ago", type: "update" },
+                      {
+                        action: "New case submitted",
+                        time: "5 min ago",
+                        type: "case",
+                      },
+                      {
+                        action: "Evidence uploaded",
+                        time: "15 min ago",
+                        type: "evidence",
+                      },
+                      {
+                        action: "Case status updated",
+                        time: "1 hour ago",
+                        type: "update",
+                      },
                     ].map((activity, index) => (
                       <div key={index} className="flex items-center space-x-3">
                         <div className="w-2 h-2 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{activity.action}</p>
-                          <p className="text-xs text-muted-foreground">{activity.time}</p>
+                          <p className="text-sm font-medium">
+                            {activity.action}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {activity.time}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -213,9 +270,15 @@ export default function AdminDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("cases.filter.all")}</SelectItem>
-                    <SelectItem value="pending">{t("cases.filter.pending")}</SelectItem>
-                    <SelectItem value="investigating">{t("cases.filter.investigating")}</SelectItem>
-                    <SelectItem value="resolved">{t("cases.filter.resolved")}</SelectItem>
+                    <SelectItem value="pending">
+                      {t("cases.filter.pending")}
+                    </SelectItem>
+                    <SelectItem value="investigating">
+                      {t("cases.filter.investigating")}
+                    </SelectItem>
+                    <SelectItem value="resolved">
+                      {t("cases.filter.resolved")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -245,15 +308,21 @@ export default function AdminDashboard() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="text-center p-4 border rounded-lg border-pink-100 dark:border-pink-900/20 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/10 dark:to-rose-950/10">
                     <div className="text-2xl font-bold text-pink-600">24</div>
-                    <div className="text-sm text-muted-foreground">{t("reports.total_cases")}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {t("reports.total_cases")}
+                    </div>
                   </div>
                   <div className="text-center p-4 border rounded-lg border-pink-100 dark:border-pink-900/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/10 dark:to-emerald-950/10">
                     <div className="text-2xl font-bold text-green-600">18</div>
-                    <div className="text-sm text-muted-foreground">{t("reports.resolved_cases")}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {t("reports.resolved_cases")}
+                    </div>
                   </div>
                   <div className="text-center p-4 border rounded-lg border-pink-100 dark:border-pink-900/20 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/10 dark:to-amber-950/10">
                     <div className="text-2xl font-bold text-orange-600">6</div>
-                    <div className="text-sm text-muted-foreground">{t("reports.pending_cases")}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {t("reports.pending_cases")}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -264,16 +333,12 @@ export default function AdminDashboard() {
               <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
                 {t("Map")}
               </h2>
-              <Button className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600">
-                <MapPin className="h-4 w-4 mr-2" />
-                {t("Map full view ")}
-              </Button>
             </div>
-            <MapPinIcon />
+            {/* <MapPinIcon /> */}
             <Map />
           </TabsContent>
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
