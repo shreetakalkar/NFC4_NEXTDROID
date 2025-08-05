@@ -221,7 +221,7 @@ export default function PanicMap() {
         {caseEvents.map((caseEvent, i) => (
           <Marker
             key={`case-${i}`}
-            position={[caseEvent.incidentLocation.latitude, caseEvent.incidentLocation.longitude]}
+            position={[caseEvent.incidentLocation?.latitude, caseEvent.incidentLocation?.longitude]}
             icon={redIcon}
           >
             <Popup>
@@ -231,7 +231,7 @@ export default function PanicMap() {
                 <p><strong>Priority:</strong> {caseEvent.priority}</p>
                 <p><strong>Description:</strong> {caseEvent.description}</p>
                 <p><strong>Reporter:</strong> {caseEvent.isAnonymous ? "Anonymous" : caseEvent.name}</p>
-                <p><strong>Incident Location:</strong> {caseEvent.incidentLocation.latitude.toFixed(6)}, {caseEvent.incidentLocation.longitude.toFixed(6)}</p>
+                <p><strong>Incident Location:</strong> {caseEvent.incidentLocation?.latitude.toFixed(6)}, {caseEvent.incidentLocation.longitude.toFixed(6)}</p>
                 <p><strong>Incident Date:</strong> {caseEvent.incidentDate.toLocaleDateString()}</p>
                 <p><strong>Reported:</strong> {caseEvent.createdAt.toLocaleString()}</p>
               </div>

@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // await initializeSampleData();
+        await initializeSampleData();
         const urgent = await caseService.getUrgentCases();
         setUrgentCases(urgent);
         setIsInitialized(true);
@@ -334,7 +334,7 @@ export default function AdminDashboard() {
                 {t("Map")}
               </h2>
             </div>
-            {/* <MapPinIcon /> */}
+            <MapPinIcon />
             <Map />
           </TabsContent>
         </Tabs>

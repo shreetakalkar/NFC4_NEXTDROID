@@ -106,7 +106,7 @@ export function CasesList({
         const casesFromDb = await Promise.all(
           querySnapshot.docs.map(async (docSnapshot) => {
             const data = docSnapshot.data();
-            
+            {!data.priority && !data.panicScore && await storeSeverityIndex(data.uid, data.description || "")}
             console.log(`Processing case ${docSnapshot.id}:`, {
               hasPriority: !!data.priority,
               hasPanicScore: !!data.panicScore,
