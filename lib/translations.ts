@@ -57,7 +57,7 @@ interface Translations {
     };
     anonymous: string;
     evidence_items: string;
-    view_details: string;
+    view_evidence: string;
     contact: string;
     status: string;
     priority: string;
@@ -186,7 +186,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "Anonymous",
       evidence_items: "evidence items",
-      view_details: "View Details",
+      view_evidence: "View Details",
       contact: "Contact",
       status: "Status",
       priority: "Priority",
@@ -313,7 +313,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "गुमनाम",
       evidence_items: "साक्ष्य आइटम",
-      view_details: "विवरण देखें",
+      view_evidence: "विवरण देखें",
       contact: "संपर्क",
       status: "स्थिति",
       priority: "प्राथमिकता",
@@ -440,7 +440,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "বেনামী",
       evidence_items: "প্রমাণ আইটেম",
-      view_details: "বিস্তারিত দেখুন",
+      view_evidence: "বিস্তারিত দেখুন",
       contact: "যোগাযোগ",
       status: "অবস্থা",
       priority: "অগ্রাধিকার",
@@ -567,7 +567,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "అనామక",
       evidence_items: "సాక్ష్య అంశాలు",
-      view_details: "వివరాలు చుడండి",
+      view_evidence: "వివరాలు చుడండి",
       contact: "సంప్రదించండి",
       status: "స్థితి",
       priority: "ప్రాధాన్యత",
@@ -694,7 +694,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "गुमनाम",
       evidence_items: "पुरावे आयटम",
-      view_details: "तपशील पहा",
+      view_evidence: "तपशील पहा",
       contact: "संपर्क",
       status: "स्थिती",
       priority: "प्राधान्य",
@@ -821,7 +821,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "அநாமதேய",
       evidence_items: "சான்று உருப்படிகள்",
-      view_details: "விவரங்களைப் பார்க்கவும்",
+      view_evidence: "விவரங்களைப் பார்க்கவும்",
       contact: "தொடர்பு",
       status: "நிலை",
       priority: "முன்னுரிமை",
@@ -948,7 +948,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "અનામી",
       evidence_items: "પુરાવા આઇટમ્સ",
-      view_details: "વિગતો જુઓ",
+      view_evidence: "વિગતો જુઓ",
       contact: "સંપર્ક",
       status: "સ્થિતિ",
       priority: "પ્રાથમિકતા",
@@ -1075,7 +1075,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "ಅನಾಮಧೇಯ",
       evidence_items: "ಸಾಕ್ಷ್ಯ ವಸ್ತುಗಳು",
-      view_details: "ವಿವರಗಳನ್ನು ನೋಡಿ",
+      view_evidence: "ವಿವರಗಳನ್ನು ನೋಡಿ",
       contact: "ಸಂಪರ್ಕ",
       status: "ಸ್ಥಿತಿ",
       priority: "ಆದ್ಯತೆ",
@@ -1202,7 +1202,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "അജ്ഞാത",
       evidence_items: "തെളിവ് ഇനങ്ങൾ",
-      view_details: "വിശദാംശങ്ങൾ കാണുക",
+      view_evidence: "വിശദാംശങ്ങൾ കാണുക",
       contact: "ബന്ധപ്പെടുക",
       status: "സ്ഥിതി",
       priority: "മുൻഗണന",
@@ -1329,7 +1329,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
       },
       anonymous: "ਗੁਮਨਾਮ",
       evidence_items: "ਸਬੂਤ ਆਈਟਮਾਂ",
-      view_details: "ਵੇਰਵੇ ਵੇਖੋ",
+      view_evidence: "ਵੇਰਵੇ ਵੇਖੋ",
       contact: "ਸੰਪਰਕ",
       status: "ਸਥਿਤੀ",
       priority: "ਤਰਜੀਹ",

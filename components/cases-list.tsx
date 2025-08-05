@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "@/hooks/use-translation"
 import { collection, getDocs, orderBy, query } from "firebase/firestore"
-import { db } from "@/lib/firebase" // Assuming your Firebase config is exported from here
+import { db } from "@/lib/firebase"
 
-// UI & Icon Imports
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card"
@@ -22,7 +21,7 @@ import {
   Eye, MessageSquare, MapPin, Calendar, Heart, FileText, Link as LinkIcon, Loader2, AlertCircle,
 } from "lucide-react"
 
-// -------------------- Types --------------------
+
 type CaseStatus = "pending" | "investigating" | "resolved"
 type CasePriority = "low" | "medium" | "high" | "urgent"
 
@@ -96,12 +95,9 @@ export function CasesList({
   }, [t]) // Re-run if `t` function changes (on language switch) to update error messages
 
   const getStatusColor = (status: CaseStatus) => {
-    switch (status) {
-      case "pending": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300";
-      case "investigating": return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300";
-      case "resolved": return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300";
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
-    }
+    if(status)
+      return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300";
+    return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300";
   }
 
   const getPriorityColor = (priority: CasePriority) => {
@@ -196,7 +192,7 @@ export function CasesList({
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" onClick={() => setSelectedCase(case_)} className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20">
                       <Eye className="h-4 w-4 mr-2" />
-                      {t("cases.view_details")}
+                      {t("cases.view_evidence")}
                     </Button>
                   </DialogTrigger>
                   {selectedCase && selectedCase.id === case_.id && (

@@ -117,7 +117,7 @@ export const userService = {
 // Case Service
 export const caseService = {
   async getAll(): Promise<Case[]> {
-    const q = query(collection(db, COLLECTIONS.CASES), orderBy("submittedAt", "desc"))
+    const q = query(collection(db, COLLECTIONS.CASES))
     const querySnapshot = await getDocs(q)
     return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Case)
   },
