@@ -11,57 +11,76 @@ import {
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Marker img fetch
+// Marker img fetch and configuration
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-// const DefaultIcon = L.icon({
-//   iconUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9f/Red_dot.svg", // simple red dot
-//   iconRetinaUrl:
-//     "https://upload.wikimedia.org/wikipedia/commons/9/9f/Yellow_dot.svg",
-//   iconSize: [12, 12],
-//   iconAnchor: [7, 25],
-//   popupAnchor: [1, -24],
-//   tooltipAnchor: [10, -20],
-//   shadowSize: [25, 25],
-// });
+// Set up the default blue icon
 L.Icon.Default.mergeOptions({
   iconUrl: markerIcon.src,
   iconRetinaUrl: markerIcon2x.src,
   shadowUrl: markerShadow.src,
 });
 
-// L.Marker.prototype.options.icon = DefaultIcon;
+// Create a custom red icon for 'case' events
+const redIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
-// 1. Define a type for your data
-interface PanicEvent {
+
+// 1. Define a unified type for any marker on the map
+interface MapMarker {
   id: string;
+  source: 'panic' | 'case'; // Differentiate the origin
   location: GeoPoint;
-  timestamp: Date; // Assuming you have a timestamp
-  // ... other fields
+  title: string;
+  details: string;
 }
 
-// 2. (Optional but recommended) Create a FirestoreDataConverter for type safety
+// 2. Update the 'panic_events' converter to the unified type
 const panicEventConverter = {
-  toFirestore(event: PanicEvent): DocumentData {
-    return { location: event.location, timestamp: event.timestamp };
+  toFirestore(event: MapMarker): DocumentData {
+    return { location: event.location, timestamp: new Date() }; // Example
   },
-  fromFirestore(snapshot: QueryDocumentSnapshot): PanicEvent {
+  fromFirestore(snapshot: QueryDocumentSnapshot): MapMarker {
     const data = snapshot.data();
     return {
       id: snapshot.id,
+      source: 'panic',
       location: data.location as GeoPoint,
-      timestamp: data.timestamp.toDate(), // Convert Firestore Timestamp to JS Date
+      title: 'Panic Alert',
+      details: `Triggered on: ${data.timestamp.toDate().toLocaleString()}`,
     };
   },
 };
 
-// In your React Component
+// 3. Create a new converter for the 'cases' collection
+const caseConverter = {
+    toFirestore(event: MapMarker): DocumentData {
+        return { incidentLocation: event.location, name: event.title }; // Example
+    },
+    fromFirestore(snapshot: QueryDocumentSnapshot): MapMarker {
+        const data = snapshot.data();
+        return {
+            id: snapshot.id,
+            source: 'case',
+            location: data.incidentLocation as GeoPoint, // Using the new field name
+            title: data.name || 'Case Report',
+            details: `Incident Date: ${data.incidentDate.toDate().toLocaleDateString()}`
+        }
+    }
+}
+
+
 export default function PanicMap() {
-  const [events, setEvents] = useState<PanicEvent[]>([]);
+  const [markers, setMarkers] = useState<MapMarker[]>([]); // Renamed state for clarity
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,21 +89,29 @@ export default function PanicMap() {
 
     const fetchData = async () => {
       try {
-        // Use the converter for type-safe queries
-        const eventsCollection = collection(db, "panic_events").withConverter(
-          panicEventConverter
-        );
-        const querySnapshot = await getDocs(eventsCollection);
+        // Prepare queries for both collections using their converters
+        const panicCollection = collection(db, "panic_events").withConverter(panicEventConverter);
+        const casesCollection = collection(db, "cases", "incidentLocation").withConverter(caseConverter);
 
-        const fetchedEvents = querySnapshot.docs.map((doc) => doc.data());
+        // Fetch both sets of data concurrently
+        const [panicSnapshot, casesSnapshot] = await Promise.all([
+            getDocs(panicCollection),
+            getDocs(casesCollection)
+        ]);
+
+        const panicMarkers = panicSnapshot.docs.map((doc) => doc.data());
+        const caseMarkers = casesSnapshot.docs.map((doc) => doc.data());
+
+        // Combine markers from both sources into one array
+        const allMarkers = [...panicMarkers, ...caseMarkers];
 
         if (isMounted) {
-          setEvents(fetchedEvents);
+          setMarkers(allMarkers);
         }
       } catch (err) {
-        console.error("Failed to fetch events:", err);
+        console.error("Failed to fetch map data:", err);
         if (isMounted) {
-          setError("Could not load event data.");
+          setError("Could not load map data.");
         }
       } finally {
         if (isMounted) {
@@ -95,14 +122,14 @@ export default function PanicMap() {
 
     fetchData();
 
-    // Cleanup function to run when the component unmounts
+    // Cleanup function
     return () => {
       isMounted = false;
     };
   }, []); // Empty dependency array means this runs once on mount
 
   if (loading) {
-    return <div>Loading events...</div>;
+    return <div>Loading Map...</div>;
   }
 
   if (error) {
@@ -112,24 +139,29 @@ export default function PanicMap() {
   return (
     <div>
       <MapContainer
-        center={[19.076, 72.8777]}
-        zoom={9}
-        scrollWheelZoom={false}
-        style={{ height: "600px", width: "90%" }}
-        className="rounded-lg"
-        preferCanvas={true}
+        center={[19.076, 72.8777]} // Centered on Mumbai
+        zoom={10}
+        scrollWheelZoom={true}
+        style={{ height: "600px", width: "100%" }}
+        className="rounded-lg border"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {events.map((event, i) => (
+        {markers.map((marker) => (
           <Marker
-            key={i}
-            position={[event.location.latitude, event.location.longitude]}
+            key={marker.id}
+            position={[marker.location.latitude, marker.location.longitude]}
+            // Conditionally choose the icon based on the data source
+            icon={marker.source === 'case' ? redIcon : new L.Icon.Default()}
           >
             <Popup>
-               {event.location.latitude}, {event.location.longitude}
+              <div style={{lineHeight: '1.4'}}>
+                <strong style={{fontSize: '14px'}}>{marker.title}</strong>
+                <br />
+                {marker.details}
+              </div>
             </Popup>
           </Marker>
         ))}
