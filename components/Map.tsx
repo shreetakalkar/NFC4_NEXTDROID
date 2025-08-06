@@ -15,6 +15,7 @@ import "leaflet/dist/leaflet.css";
 import { useMap } from "react-leaflet";
 import { useEffect as useLeafletEffect } from "react";
 import L from "leaflet";
+import { storeAverageCoordinates } from "@/lib/mapAvgCoord";
 
 // Import heatmap functionality
 import "leaflet.heat";
@@ -197,6 +198,7 @@ export default function PanicMap() {
         if (isMounted) {
           setPanicAlerts(fetchedPanicAlerts);
           setCaseEvents(fetchedCaseEvents);
+          await storeAverageCoordinates(fetchedPanicAlerts, fetchedCaseEvents);
         }
       } catch (err) {
         console.error("Failed to fetch events:", err);
@@ -332,3 +334,4 @@ export default function PanicMap() {
     </div>
   );
 }
+

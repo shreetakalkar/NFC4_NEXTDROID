@@ -79,6 +79,9 @@ interface Case {
   harasserName?: string;
   harasserReportCount?: number;
   isHighRiskHarasser?: boolean;
+  futureDate?: Date; // Optional field for future incidents
+  normalizedName?: string; // Normalized harasser name for grouping
+  evidence_analysis?: string; // Optional field for evidence analysis
 }
 
 interface AggregatedCase {
@@ -109,7 +112,7 @@ export function CasesList({
   searchQuery = "",
   statusFilter = "all",
 }: CasesListProps) {
-const router = useRouter();
+  const router = useRouter();
   const { t } = useTranslation();
   const [cases, setCases] = useState<Case[]>([]);
   const [aggregatedCases, setAggregatedCases] = useState<AggregatedCase[]>([]);
@@ -744,291 +747,324 @@ const router = useRouter();
                 <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
                   Individual Cases ({aggregated.cases.length}):
                 </h4>
-                {aggregated.cases.map((case_) => (
-                  <Card
-                    key={case_.id}
-                    className="border-l-4 border-l-rose-500 bg-white dark:bg-gray-950"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center flex-wrap gap-2">
-                            <CardTitle className="text-base text-gray-900 dark:text-gray-100">
-                              {case_.name}
-                            </CardTitle>
-                            <Badge className={getPriorityColor(case_.priority)}>
-                              {case_.priority.toUpperCase()}
-                            </Badge>
-                            <Badge className={getStatusColor(case_.status)}>
-                              {case_.status.toUpperCase()}
-                            </Badge>
-                            {case_.panicScore !== undefined && (
-                              <Badge
-                                variant="outline"
-                                className="border-purple-200 text-purple-700"
-                              >
-                                Panic: {case_.panicScore.toFixed(2)}
-                              </Badge>
-                            )}
-                          </div>
-                          <CardDescription className="text-gray-600 dark:text-gray-400">
-                            {formatDescription(case_.description)}
-                          </CardDescription>
-                        </div>
-                        <div className="text-sm text-muted-foreground text-right flex-shrink-0">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-4 w-4" />
-                            <span>
-                              {case_.incidentDate.toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="flex justify-between flex-wrap gap-4 items-center">
-                        <div className="flex gap-4 text-sm text-muted-foreground items-center flex-wrap">
-                          <div className="flex items-center gap-1.5">
-                            <FileText className="h-4 w-4" />
-                            <span>
-                              Submitted: {case_.createdAt.toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-4 w-4" />
-                            <span>{case_.location}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <Eye className="h-4 w-4" />
-                            <span>{getAttachmentCount(case_)} Attachments</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Dialog
-                            onOpenChange={(isOpen) =>
-                              !isOpen && setSelectedCase(null)
-                            }
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setSelectedCase(case_)}
-                                className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Evidence
-                              </Button>
-                            </DialogTrigger>
-                            {/* Add this after the Contact User button */}
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => {
-                                // Add escalation logic here
-                                router.push("https://mumbaipolice.gov.in/CAWU");
-                              }}
-                            >
-                              <Shield className="h-4 w-4 mr-2" />
-                              Escalate to Police
-                            </Button>
-                            {selectedCase && selectedCase.id === case_.id && (
-                              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>Evidence Files</DialogTitle>
-                                  <DialogDescription>
-                                    View case attachments for "
-                                    {selectedCase.name}"
-                                    {selectedCase.harasserName && (
-                                      <>
-                                        <br />
-                                        <span className="font-medium">
-                                          Suspect:{" "}
-                                        </span>
-                                        <span className="text-red-600 font-semibold">
-                                          {selectedCase.harasserName}
-                                        </span>
-                                      </>
-                                    )}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-6 py-4">
-                                  {/* Image Attachments */}
-                                  {selectedCase.attachmentImage &&
-                                    selectedCase.attachmentImage.length > 0 && (
-                                      <div className="space-y-4">
-                                        <div className="flex items-center gap-2">
-                                          <ImageIcon className="h-5 w-5" />
-                                          <h3 className="text-md font-medium">
-                                            Image Evidence (
-                                            {
-                                              selectedCase.attachmentImage
-                                                .length
-                                            }
-                                            )
-                                          </h3>
-                                        </div>
-                                        {selectedCase.attachmentImage.map(
-                                          (imageUrl, index) => (
-                                            <div
-                                              key={`img-${index}`}
-                                              className="bg-muted rounded-lg overflow-hidden border"
-                                            >
-                                              <div className="relative w-full aspect-video">
-                                                <img
-                                                  src={imageUrl}
-                                                  alt={`Image Evidence ${
-                                                    index + 1
-                                                  }`}
-                                                  className="w-full h-full object-contain rounded-lg"
-                                                  loading="lazy"
-                                                />
-                                              </div>
-                                            </div>
-                                          )
-                                        )}
-                                      </div>
-                                    )}
-
-                                  {/* Video Attachments */}
-                                  {selectedCase.attachmentVideo &&
-                                    selectedCase.attachmentVideo.length > 0 && (
-                                      <div className="space-y-4">
-                                        <div className="flex items-center gap-2">
-                                          <Video className="h-5 w-5" />
-                                          <h3 className="text-md font-medium">
-                                            Video Evidence (
-                                            {
-                                              selectedCase.attachmentVideo
-                                                .length
-                                            }
-                                            )
-                                          </h3>
-                                        </div>
-                                        {selectedCase.attachmentVideo.map(
-                                          (videoUrl, index) => (
-                                            <div
-                                              key={`vid-${index}`}
-                                              className="bg-muted rounded-lg overflow-hidden border"
-                                            >
-                                              <video
-                                                src={videoUrl}
-                                                controls
-                                                className="w-full aspect-video rounded-lg"
-                                                preload="metadata"
-                                              >
-                                                Your browser does not support
-                                                the video tag.
-                                              </video>
-                                            </div>
-                                          )
-                                        )}
-                                      </div>
-                                    )}
-
-                                  {/* Audio Attachments */}
-                                  {selectedCase.attachmentAudio &&
-                                    selectedCase.attachmentAudio.length > 0 && (
-                                      <div className="space-y-4">
-                                        <div className="flex items-center gap-2">
-                                          <Volume2 className="h-5 w-5" />
-                                          <h3 className="text-md font-medium">
-                                            Audio Evidence (
-                                            {
-                                              selectedCase.attachmentAudio
-                                                .length
-                                            }
-                                            )
-                                          </h3>
-                                        </div>
-                                        {selectedCase.attachmentAudio.map(
-                                          (audioUrl, index) => (
-                                            <div
-                                              key={`aud-${index}`}
-                                              className="bg-muted rounded-lg overflow-hidden border p-4"
-                                            >
-                                              <audio
-                                                src={audioUrl}
-                                                controls
-                                                className="w-full"
-                                                preload="metadata"
-                                              >
-                                                Your browser does not support
-                                                the audio tag.
-                                              </audio>
-                                            </div>
-                                          )
-                                        )}
-                                      </div>
-                                    )}
-
-                                  {/* No attachments */}
-                                  {(!selectedCase.attachmentImage ||
-                                    selectedCase.attachmentImage.length ===
-                                      0) &&
-                                    (!selectedCase.attachmentVideo ||
-                                      selectedCase.attachmentVideo.length ===
-                                        0) &&
-                                    (!selectedCase.attachmentAudio ||
-                                      selectedCase.attachmentAudio.length ===
-                                        0) && (
-                                      <p className="text-sm text-muted-foreground text-center py-8">
-                                        No evidence provided
-                                      </p>
-                                    )}
-                                </div>
-                              </DialogContent>
-                            )}
-                          </Dialog>
-
-                          {!case_.isAnonymous && (
-                            <Dialog
-                              onOpenChange={(isOpen) => {
-                                if (!isOpen) {
-                                  setSelectedCase(null);
-                                }
-                              }}
-                            >
-                              <DialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  className="bg-rose-600 hover:bg-rose-700"
-                                  onClick={() => setSelectedCase(case_)}
+                {aggregated.cases.map(
+                  (case_) =>
+                    (!case_.futureDate || case_.futureDate > new Date()) && (
+                      <Card
+                        key={case_.id}
+                        className="border-l-4 border-l-rose-500 bg-white dark:bg-gray-950"
+                      >
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center flex-wrap gap-2">
+                                <CardTitle className="text-base text-gray-900 dark:text-gray-100">
+                                  {case_.name}
+                                </CardTitle>
+                                <Badge
+                                  className={getPriorityColor(case_.priority)}
                                 >
-                                  <MessageSquare className="h-4 w-4 mr-2" />
-                                  Contact
-                                </Button>
-                              </DialogTrigger>
-                              {selectedCase && selectedCase.id === case_.id && (
-                                <DialogContent className="max-w-md">
-                                  <DialogHeader>
-                                    <DialogTitle>
-                                      Contact Case Owner
-                                    </DialogTitle>
-                                    <DialogDescription>
-                                      <strong>Case:</strong> {selectedCase.name}
-                                      <br />
-                                      <strong>Name:</strong>{" "}
-                                      {`${
-                                        selectedCase.reporterFirstName || ""
-                                      } ${
-                                        selectedCase.reporterLastName || ""
-                                      }`.trim() || "Not provided"}
-                                      <br />
-                                      <strong>Phone:</strong>{" "}
-                                      {selectedCase.reporterPhone ||
-                                        "Not provided"}
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                </DialogContent>
+                                  {case_.priority.toUpperCase()}
+                                </Badge>
+                                <Badge className={getStatusColor(case_.status)}>
+                                  {case_.status.toUpperCase()}
+                                </Badge>
+                                {case_.panicScore !== undefined && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-purple-200 text-purple-700"
+                                  >
+                                    Panic: {case_.panicScore.toFixed(2)}
+                                  </Badge>
+                                )}
+                              </div>
+                              <CardDescription className="text-gray-600 dark:text-gray-400">
+                                {formatDescription(case_.description)}
+                              </CardDescription>
+                              {case_.evidence_analysis && (
+                                <div className="mt-3">
+                                  {" "}
+                                  {/* Adds a little space */}
+                                  <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                    Evidence Analysis:
+                                  </h4>
+                                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                                    {case_.evidence_analysis}
+                                  </CardDescription>
+                                </div>
                               )}
-                            </Dialog>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                            </div>
+                            <div className="text-sm text-muted-foreground text-right flex-shrink-0">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="h-4 w-4" />
+                                <span>
+                                  {case_.incidentDate.toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="flex justify-between flex-wrap gap-4 items-center">
+                            <div className="flex gap-4 text-sm text-muted-foreground items-center flex-wrap">
+                              <div className="flex items-center gap-1.5">
+                                <FileText className="h-4 w-4" />
+                                <span>
+                                  Submitted:{" "}
+                                  {case_.createdAt.toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <MapPin className="h-4 w-4" />
+                                <span>{case_.location}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Eye className="h-4 w-4" />
+                                <span>
+                                  {getAttachmentCount(case_)} Attachments
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Dialog
+                                onOpenChange={(isOpen) =>
+                                  !isOpen && setSelectedCase(null)
+                                }
+                              >
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSelectedCase(case_)}
+                                    className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Evidence
+                                  </Button>
+                                </DialogTrigger>
+                                {selectedCase &&
+                                  selectedCase.id === case_.id && (
+                                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                      <DialogHeader>
+                                        <DialogTitle>
+                                          Evidence Files
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                          View case attachments for "
+                                          {selectedCase.name}"
+                                          {selectedCase.harasserName && (
+                                            <>
+                                              <br />
+                                              <span className="font-medium">
+                                                Suspect:{" "}
+                                              </span>
+                                              <span className="text-red-600 font-semibold">
+                                                {selectedCase.harasserName}
+                                              </span>
+                                            </>
+                                          )}
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <div className="space-y-6 py-4">
+                                        {/* Image Attachments */}
+                                        {selectedCase.attachmentImage &&
+                                          selectedCase.attachmentImage.length >
+                                            0 && (
+                                            <div className="space-y-4">
+                                              <div className="flex items-center gap-2">
+                                                <ImageIcon className="h-5 w-5" />
+                                                <h3 className="text-md font-medium">
+                                                  Image Evidence (
+                                                  {
+                                                    selectedCase.attachmentImage
+                                                      .length
+                                                  }
+                                                  )
+                                                </h3>
+                                              </div>
+                                              {selectedCase.attachmentImage.map(
+                                                (imageUrl, index) => (
+                                                  <div
+                                                    key={`img-${index}`}
+                                                    className="bg-muted rounded-lg overflow-hidden border"
+                                                  >
+                                                    <div className="relative w-full aspect-video">
+                                                      <img
+                                                        src={imageUrl}
+                                                        alt={`Image Evidence ${
+                                                          index + 1
+                                                        }`}
+                                                        className="w-full h-full object-contain rounded-lg"
+                                                        loading="lazy"
+                                                      />
+                                                    </div>
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+
+                                        {/* Video Attachments */}
+                                        {selectedCase.attachmentVideo &&
+                                          selectedCase.attachmentVideo.length >
+                                            0 && (
+                                            <div className="space-y-4">
+                                              <div className="flex items-center gap-2">
+                                                <Video className="h-5 w-5" />
+                                                <h3 className="text-md font-medium">
+                                                  Video Evidence (
+                                                  {
+                                                    selectedCase.attachmentVideo
+                                                      .length
+                                                  }
+                                                  )
+                                                </h3>
+                                              </div>
+                                              {selectedCase.attachmentVideo.map(
+                                                (videoUrl, index) => (
+                                                  <div
+                                                    key={`vid-${index}`}
+                                                    className="bg-muted rounded-lg overflow-hidden border"
+                                                  >
+                                                    <video
+                                                      src={videoUrl}
+                                                      controls
+                                                      className="w-full aspect-video rounded-lg"
+                                                      preload="metadata"
+                                                    >
+                                                      Your browser does not
+                                                      support the video tag.
+                                                    </video>
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+
+                                        {/* Audio Attachments */}
+                                        {selectedCase.attachmentAudio &&
+                                          selectedCase.attachmentAudio.length >
+                                            0 && (
+                                            <div className="space-y-4">
+                                              <div className="flex items-center gap-2">
+                                                <Volume2 className="h-5 w-5" />
+                                                <h3 className="text-md font-medium">
+                                                  Audio Evidence (
+                                                  {
+                                                    selectedCase.attachmentAudio
+                                                      .length
+                                                  }
+                                                  )
+                                                </h3>
+                                              </div>
+                                              {selectedCase.attachmentAudio.map(
+                                                (audioUrl, index) => (
+                                                  <div
+                                                    key={`aud-${index}`}
+                                                    className="bg-muted rounded-lg overflow-hidden border p-4"
+                                                  >
+                                                    <audio
+                                                      src={audioUrl}
+                                                      controls
+                                                      className="w-full"
+                                                      preload="metadata"
+                                                    >
+                                                      Your browser does not
+                                                      support the audio tag.
+                                                    </audio>
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+
+                                        {/* No attachments */}
+                                        {(!selectedCase.attachmentImage ||
+                                          selectedCase.attachmentImage
+                                            .length === 0) &&
+                                          (!selectedCase.attachmentVideo ||
+                                            selectedCase.attachmentVideo
+                                              .length === 0) &&
+                                          (!selectedCase.attachmentAudio ||
+                                            selectedCase.attachmentAudio
+                                              .length === 0) && (
+                                            <p className="text-sm text-muted-foreground text-center py-8">
+                                              No evidence provided
+                                            </p>
+                                          )}
+                                      </div>
+                                    </DialogContent>
+                                  )}
+                              </Dialog>
+
+                              {/* Escalate to Police Button - moved outside Dialog */}
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => {
+                                  // Add escalation logic here
+                                  router.push(
+                                    "https://mumbaipolice.gov.in/CAWU"
+                                  );
+                                }}
+                              >
+                                <Shield className="h-4 w-4 mr-2" />
+                                Escalate to Police
+                              </Button>
+
+                              {!case_.isAnonymous && (
+                                <Dialog
+                                  onOpenChange={(isOpen) => {
+                                    if (!isOpen) {
+                                      setSelectedCase(null);
+                                    }
+                                  }}
+                                >
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      className="bg-rose-600 hover:bg-rose-700"
+                                      onClick={() => setSelectedCase(case_)}
+                                    >
+                                      <MessageSquare className="h-4 w-4 mr-2" />
+                                      Contact
+                                    </Button>
+                                  </DialogTrigger>
+                                  {selectedCase &&
+                                    selectedCase.id === case_.id && (
+                                      <DialogContent className="max-w-md">
+                                        <DialogHeader>
+                                          <DialogTitle>
+                                            Contact Case Owner
+                                          </DialogTitle>
+                                          <DialogDescription>
+                                            <strong>Case:</strong>{" "}
+                                            {selectedCase.name}
+                                            <br />
+                                            <strong>Name:</strong>{" "}
+                                            {`${
+                                              selectedCase.reporterFirstName ||
+                                              ""
+                                            } ${
+                                              selectedCase.reporterLastName ||
+                                              ""
+                                            }`.trim() || "Not provided"}
+                                            <br />
+                                            <strong>Phone:</strong>{" "}
+                                            {selectedCase.reporterPhone ||
+                                              "Not provided"}
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                      </DialogContent>
+                                    )}
+                                </Dialog>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                )}
               </div>
             </CardContent>
           )}
