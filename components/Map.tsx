@@ -256,11 +256,11 @@ export default function PanicMap() {
       <div className="mb-4">
         <div className="flex gap-4 items-center">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-red-600 rounded-full"></div>
+            <div className="w-4 h-4 bg-gradient-to-r from-red-400 to-red-600 rounded-full"></div>
             <span>Panic Alerts ({panicAlerts.length})</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full"></div>
+            <div className="w-4 h-4 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"></div>
             <span>Case Reports ({caseEvents.length})</span>
           </div>
           <div className="text-sm text-gray-600 ml-4">
@@ -282,7 +282,7 @@ export default function PanicMap() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* Panic Alerts Heatmap - Orange/Red gradient */}
+        {/* Panic Alerts Heatmap - Red gradient */}
         {panicHeatmapPoints.length > 0 && (
           <HeatmapLayer 
             points={panicHeatmapPoints}
@@ -293,17 +293,17 @@ export default function PanicMap() {
               max: 0.5, // Lower max to make points more visible
               minOpacity: 0.3,
               gradient: {
-                0.1: '#FFD700', // Gold
-                0.3: '#FFA500', // Orange  
-                0.5: '#FF8C00', // Dark Orange
-                0.7: '#FF4500', // Orange Red
-                1.0: '#FF0000'  // Red
+                0.1: '#FF6B6B', // Light Red
+                0.3: '#FF4444', // Medium Red
+                0.5: '#FF0000', // Pure Red
+                0.7: '#CC0000', // Dark Red
+                1.0: '#990000'  // Very Dark Red
               }
             }}
           />
         )}
         
-        {/* Case Events Heatmap - Blue/Purple gradient */}
+        {/* Case Events Heatmap - Orange gradient */}
         {caseHeatmapPoints.length > 0 && (
           <HeatmapLayer 
             points={caseHeatmapPoints}
@@ -314,11 +314,11 @@ export default function PanicMap() {
               max: 0.5, // Lower max to make points more visible
               minOpacity: 0.2,
               gradient: {
-                0.1: '#87CEEB', // Sky Blue
-                0.3: '#4169E1', // Royal Blue
-                0.5: '#0000FF', // Blue
-                0.7: '#8A2BE2', // Blue Violet
-                1.0: '#9400D3'  // Violet
+                0.1: '#FFE4B5', // Moccasin (very light orange)
+                0.3: '#FFD700', // Gold
+                0.5: '#FFA500', // Orange
+                0.7: '#FF8C00', // Dark Orange
+                1.0: '#FF6600'  // Red Orange
               }
             }}
           />

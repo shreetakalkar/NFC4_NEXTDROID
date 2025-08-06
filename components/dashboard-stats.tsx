@@ -10,7 +10,7 @@ interface Case {
   id: string
   description: string
   status: boolean  // true = resolved, false = pending
-  priority: string // "Low", "Medium", "High", "Urgent"
+  priority: string // "Low", "Medium", "High", "critical"
   isAnonymous: boolean
   name: string
   panicScore: number
@@ -23,11 +23,11 @@ export function DashboardStats() {
   const { t } = useTranslation()
   const [stats, setStats] = useState({
     totalCases: 0,
-    urgentCases: 0,
+    criticalCases: 0,
     activeUsers: 0,
     resolutionRate: 0,
   })
-  const [urgentCasesList, setUrgentCasesList] = useState<Case[]>([])
+  const [criticalCasesList, setcriticalCasesList] = useState<Case[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -45,15 +45,15 @@ export function DashboardStats() {
         // Calculate stats based on your DB structure
         const totalCases = Array.isArray(allCases) ? allCases.length : 0
         const resolvedCases = Array.isArray(allCases) ? allCases.filter(c => c?.status === true).length : 0
-        const urgentCases = Array.isArray(allCases) ? 
-          allCases.filter(c => c?.priority?.toLowerCase() === "urgent" || c?.priority?.toLowerCase() === "high").length : 0
+        const criticalCases = Array.isArray(allCases) ? 
+          allCases.filter(c => c?.priority?.toLowerCase() === "critical" || c?.priority?.toLowerCase() === "high").length : 0
         const activeUsers = Array.isArray(users) ? users.filter(user => user?.status === "active").length : 0
         const resolutionRate = totalCases > 0 ? Math.round((resolvedCases / totalCases) * 100) : 0
 
-        // Get urgent cases for display
-        const urgentList = Array.isArray(allCases) ? 
+        // Get critical cases for display
+        const criticalList = Array.isArray(allCases) ? 
           allCases
-            .filter(c => c?.priority?.toLowerCase() === "urgent" || c?.priority?.toLowerCase() === "high")
+            .filter(c => c?.priority?.toLowerCase() === "critical" || c?.priority?.toLowerCase() === "high")
             .sort((a, b) => {
               // Sort by panic score (higher first), then by creation date (newer first)
               if (a.panicScore !== b.panicScore) {
@@ -62,25 +62,25 @@ export function DashboardStats() {
               return new Date(b.createdAt?.toDate?.() || b.createdAt).getTime() - 
                      new Date(a.createdAt?.toDate?.() || a.createdAt).getTime()
             })
-            .slice(0, 5) : [] // Top 5 urgent cases
+            .slice(0, 5) : [] // Top 5 critical cases
 
         setStats({
           totalCases,
-          urgentCases,
+          criticalCases,
           activeUsers,
           resolutionRate,
         })
-        setUrgentCasesList(urgentList)
+        setcriticalCasesList(criticalList)
       } catch (error) {
         console.error("Error fetching stats:", error)
         setError("Failed to load statistics")
         setStats({
           totalCases: 0,
-          urgentCases: 0,
+          criticalCases: 0,
           activeUsers: 0,
           resolutionRate: 0,
         })
-        setUrgentCasesList([])
+        setcriticalCasesList([])
       } finally {
         setLoading(false)
       }
@@ -114,7 +114,7 @@ export function DashboardStats() {
   // Helper function to get priority color
   const getPriorityColor = (priority: string) => {
     switch(priority?.toLowerCase()) {
-      case "urgent": return "text-red-600 bg-red-100"
+      case "critical": return "text-red-600 bg-red-100"
       case "high": return "text-orange-600 bg-orange-100"
       case "medium": return "text-yellow-600 bg-yellow-100"
       default: return "text-green-600 bg-green-100"
@@ -132,11 +132,11 @@ export function DashboardStats() {
       bgColor: "bg-pink-50 dark:bg-pink-950/20",
     },
     {
-      title: "Urgent Cases",
-      value: loading ? "..." : safeToString(stats.urgentCases),
-      description: "High & urgent priority cases",
+      title: "critical Cases",
+      value: loading ? "..." : safeToString(stats.criticalCases),
+      description: "High & critical priority cases",
       icon: AlertTriangle,
-      trend: stats.urgentCases > 0 ? `${stats.urgentCases} active` : "None active",
+      trend: stats.criticalCases > 0 ? `${stats.criticalCases} active` : "None active",
       color: "text-red-600",
       bgColor: "bg-red-50 dark:bg-red-950/20",
     },
@@ -207,21 +207,21 @@ export function DashboardStats() {
         ))}
       </div>
 
-      {/* Urgent Cases List */}
-      {stats.urgentCases > 0 && (
+      {/* critical Cases List */}
+      {stats.criticalCases > 0 && (
         <Card className="border-red-200 dark:border-red-900/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
               <AlertTriangle className="h-5 w-5" />
-              Top Urgent Cases ({urgentCasesList.length})
+              Top critical Cases ({criticalCasesList.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="text-center py-4">Loading urgent cases...</div>
-            ) : urgentCasesList.length > 0 ? (
+              <div className="text-center py-4">Loading critical cases...</div>
+            ) : criticalCasesList.length > 0 ? (
               <div className="space-y-3">
-                {urgentCasesList.map((case_, index) => (
+                {criticalCasesList.map((case_, index) => (
                   <div key={case_.id || index} className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -258,7 +258,7 @@ export function DashboardStats() {
               </div>
             ) : (
               <div className="text-center py-4 text-gray-500">
-                No urgent cases found
+                No critical cases found
               </div>
             )}
           </CardContent>
