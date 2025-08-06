@@ -441,7 +441,7 @@ export function CasesList({
                                     className="bg-muted rounded-lg overflow-hidden border"
                                   >
                                     <div className="relative w-full aspect-video">
-                                      <Image
+                                      <img
                                         src={imageUrl}
                                         alt={`Image Evidence ${index + 1}`}
                                         fill
