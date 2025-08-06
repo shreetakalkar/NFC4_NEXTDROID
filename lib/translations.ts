@@ -147,7 +147,7 @@ export const translations: Record<SupportedLanguage, Translations> = {
   en: {
     system: {
       title: "Secure Harassment Reporting System",
-      subtitle: "Admin Dashboard"
+      subtitle: "Admin Dashboard",
     },
     nav: {
       overview: "Overview",

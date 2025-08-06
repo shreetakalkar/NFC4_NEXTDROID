@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; // Your Firebase config
+import { getFirestore } from "firebase/firestore";
 import {
   collection,
   getDocs,
@@ -9,45 +10,46 @@ import {
   QueryDocumentSnapshot,
   Timestamp,
 } from "firebase/firestore";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-
-// Marker img fetch
+import { useMap } from "react-leaflet";
+import { useEffect as useLeafletEffect } from "react";
 import L from "leaflet";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-// Default blue marker
-L.Icon.Default.mergeOptions({
-  iconUrl: markerIcon.src,
-  iconRetinaUrl: markerIcon2x.src,
-  shadowUrl: markerShadow.src,
-});
+// Import heatmap functionality
+import "leaflet.heat";
 
-// Red marker for cases
-const redIcon = L.icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  tooltipAnchor: [16, -28],
-  shadowUrl: markerShadow.src,
-  shadowSize: [41, 41],
-});
+// Heatmap component using leaflet.heat
+function HeatmapLayer({ points, options = {} }) {
+  const map = useMap();
 
-// Orange marker for panic alerts
-const orangeIcon = L.icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png",
-  iconRetinaUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  tooltipAnchor: [16, -28],
-  shadowUrl: markerShadow.src,
-  shadowSize: [41, 41],
-});
+  useLeafletEffect(() => {
+    if (!points || points.length === 0) return;
+
+    // Create heat layer using leaflet.heat
+    const heat = L.heatLayer(points, {
+      radius: options.radius || 25,
+      blur: options.blur || 15,
+      maxZoom: options.maxZoom || 17,
+      max: options.max || 1.0,
+      gradient: options.gradient || {
+        0.4: 'blue',
+        0.6: 'cyan',
+        0.7: 'lime',
+        0.8: 'yellow',
+        1.0: 'red'
+      }
+    });
+
+    heat.addTo(map);
+
+    return () => {
+      map.removeLayer(heat);
+    };
+  }, [map, points, options]);
+
+  return null;
+}
 
 // 1. Define types for your data
 interface PanicAlert {
@@ -164,6 +166,11 @@ export default function PanicMap() {
 
     const fetchData = async () => {
       try {
+        // Check if db is properly initialized
+        if (!db) {
+          throw new Error("Firebase database is not initialized");
+        }
+
         // Fetch panic alerts
         const panicAlertsCollection = collection(db, "panic_events").withConverter(
           panicAlertConverter
@@ -192,7 +199,7 @@ export default function PanicMap() {
       } catch (err) {
         console.error("Failed to fetch events:", err);
         if (isMounted) {
-          setError("Could not load event data.");
+          setError(`Could not load event data: ${err.message || err}`);
         }
       } finally {
         if (isMounted) {
@@ -208,6 +215,25 @@ export default function PanicMap() {
       isMounted = false;
     };
   }, []); // Empty dependency array means this runs once on mount
+
+  // Convert data to separate heatmap points for different types
+  const panicHeatmapPoints = panicAlerts.map(alert => [
+    alert.location.latitude,
+    alert.location.longitude,
+    2.0 // much higher intensity for panic alerts
+  ]);
+
+  const caseHeatmapPoints = caseEvents.map(caseEvent => {
+    const location = isValidGeoPoint(caseEvent.incidentLocation) 
+      ? caseEvent.incidentLocation 
+      : caseEvent.currentLocation;
+    
+    return [
+      location!.latitude,
+      location!.longitude,
+      1.5 // higher intensity for regular cases
+    ];
+  }).filter(point => point[0] !== undefined && point[1] !== undefined);
 
   if (loading) {
     return (
@@ -230,19 +256,22 @@ export default function PanicMap() {
       <div className="mb-4">
         <div className="flex gap-4 items-center">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
+            <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-red-600 rounded-full"></div>
             <span>Panic Alerts ({panicAlerts.length})</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+            <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full"></div>
             <span>Case Reports ({caseEvents.length})</span>
+          </div>
+          <div className="text-sm text-gray-600 ml-4">
+            Higher intensity areas indicate more incidents
           </div>
         </div>
       </div>
       
       <MapContainer
         center={[19.076, 72.8777]}
-        zoom={10}
+        zoom={13}
         scrollWheelZoom={true}
         style={{ height: "600px", width: "100%" }}
         className="rounded-lg border"
@@ -253,96 +282,47 @@ export default function PanicMap() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* Panic Alerts - Orange markers */}
-        {panicAlerts.map((alert, i) => (
-          <Marker
-            key={`panic-${alert.id}-${i}`}
-            position={[alert.location.latitude, alert.location.longitude]}
-            icon={orangeIcon}
-          >
-            <Popup>
-              <div className="max-w-xs">
-                <h3 className="font-bold text-orange-600 mb-2">🚨 Panic Alert</h3>
-                <div className="space-y-1 text-sm">
-                  <p><strong>Alert ID:</strong> {alert.id}</p>
-                  <p><strong>User ID:</strong> {alert.userId}</p>
-                  <p><strong>Location:</strong> {alert.location.latitude.toFixed(6)}, {alert.location.longitude.toFixed(6)}</p>
-                  <p><strong>Triggered:</strong> {alert.timestamp.toLocaleString()}</p>
-                  {alert.audioUrl && (
-                    <div className="mt-2">
-                      <audio controls className="w-full">
-                        <source src={alert.audioUrl} type="audio/mpeg" />
-                        Your browser does not support the audio element.
-                      </audio>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {/* Panic Alerts Heatmap - Orange/Red gradient */}
+        {panicHeatmapPoints.length > 0 && (
+          <HeatmapLayer 
+            points={panicHeatmapPoints}
+            options={{
+              radius: 60,
+              blur: 40,
+              maxZoom: 17,
+              max: 0.5, // Lower max to make points more visible
+              minOpacity: 0.3,
+              gradient: {
+                0.1: '#FFD700', // Gold
+                0.3: '#FFA500', // Orange  
+                0.5: '#FF8C00', // Dark Orange
+                0.7: '#FF4500', // Orange Red
+                1.0: '#FF0000'  // Red
+              }
+            }}
+          />
+        )}
         
-        {/* Case Events - Red markers */}
-        {caseEvents.map((caseEvent, i) => {
-          // Use incidentLocation if available, otherwise fall back to currentLocation
-          const location = isValidGeoPoint(caseEvent.incidentLocation) 
-            ? caseEvent.incidentLocation 
-            : caseEvent.currentLocation;
-          
-          if (!isValidGeoPoint(location)) {
-            return null; // Skip this marker if no valid location
-          }
-
-          return (
-            <Marker
-              key={`case-${caseEvent.id}-${i}`}
-              position={[location!.latitude, location!.longitude]}
-              icon={redIcon}
-            >
-              <Popup>
-                <div className="max-w-xs">
-                  <h3 className="font-bold text-red-600 mb-2">📋 Case Report</h3>
-                  <div className="space-y-1 text-sm">
-                    <p><strong>Case:</strong> {caseEvent.name || "Untitled"}</p>
-                    <p><strong>Status:</strong> 
-                      <span className={`ml-1 px-2 py-1 rounded text-xs ${
-                        caseEvent.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                        caseEvent.status === 'investigating' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {caseEvent.status}
-                      </span>
-                    </p>
-                    <p><strong>Priority:</strong> 
-                      <span className={`ml-1 px-2 py-1 rounded text-xs ${
-                        caseEvent.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                        caseEvent.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                        caseEvent.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {caseEvent.priority}
-                      </span>
-                    </p>
-                    <p><strong>Description:</strong> {caseEvent.description.length > 100 
-                      ? caseEvent.description.substring(0, 100) + "..." 
-                      : caseEvent.description}</p>
-                    <p><strong>Reporter:</strong> {caseEvent.isAnonymous ? "Anonymous" : caseEvent.name}</p>
-                    <p><strong>Location:</strong> {location!.latitude.toFixed(6)}, {location!.longitude.toFixed(6)}</p>
-                    <p><strong>Incident Date:</strong> {caseEvent.incidentDate.toLocaleDateString()}</p>
-                    <p><strong>Reported:</strong> {caseEvent.createdAt.toLocaleString()}</p>
-                    {(caseEvent.attachmentImage.length > 0 || caseEvent.attachmentVideo.length > 0 || caseEvent.attachmentAudio.length > 0) && (
-                      <p><strong>Attachments:</strong> 
-                        {caseEvent.attachmentImage.length} 📷 
-                        {caseEvent.attachmentVideo.length} 🎥 
-                        {caseEvent.attachmentAudio.length} 🔊
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+        {/* Case Events Heatmap - Blue/Purple gradient */}
+        {caseHeatmapPoints.length > 0 && (
+          <HeatmapLayer 
+            points={caseHeatmapPoints}
+            options={{
+              radius: 50,
+              blur: 30,
+              maxZoom: 17,
+              max: 0.5, // Lower max to make points more visible
+              minOpacity: 0.2,
+              gradient: {
+                0.1: '#87CEEB', // Sky Blue
+                0.3: '#4169E1', // Royal Blue
+                0.5: '#0000FF', // Blue
+                0.7: '#8A2BE2', // Blue Violet
+                1.0: '#9400D3'  // Violet
+              }
+            }}
+          />
+        )}
       </MapContainer>
     </div>
   );
