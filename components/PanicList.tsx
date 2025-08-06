@@ -38,8 +38,6 @@ import {
   AlertCircle,
   Volume2,
   Phone,
-  Navigation,
-  User,
   Clock,
 } from "lucide-react";
 
@@ -52,7 +50,6 @@ interface PanicAlert {
   timestamp: Date;
   userId: string;
   status: AlertStatus;
-  // User info fetched separately
   userName?: string;
   userPhone?: string;
 }
@@ -80,14 +77,13 @@ export default function PanicList({
         const alertsCollectionRef = collection(db, "panic_events");
         const q = query(alertsCollectionRef, orderBy("timestamp", "desc"));
         const querySnapshot = await getDocs(q);
-        
+
         const alertsFromDb = await Promise.all(
           querySnapshot.docs.map(async (docSnapshot) => {
             const data = docSnapshot.data();
-            
+
             let userInfo = {};
 
-            // Fetch user data
             if (data.userId) {
               try {
                 const userDocRef = doc(db, "users", data.userId);
@@ -96,7 +92,9 @@ export default function PanicList({
                 if (userSnapshot.exists()) {
                   const userData = userSnapshot.data();
                   userInfo = {
-                    userName: `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown User",
+                    userName: `${userData.firstName || ""} ${
+                      userData.lastName || ""
+                    }`.trim() || "Unknown User",
                     userPhone: userData.phoneNumber || "Not provided",
                   };
                 }
@@ -108,7 +106,7 @@ export default function PanicList({
                 };
               }
             }
-            
+
             const formatGeoPoint = (geoPoint: GeoPoint | undefined) => {
               if (geoPoint && geoPoint.latitude && geoPoint.longitude) {
                 return `${geoPoint.latitude.toFixed(
@@ -118,16 +116,14 @@ export default function PanicList({
               return "Location not specified";
             };
 
-            // Determine status based on timestamp (you can modify this logic)
             const getAlertStatus = (): AlertStatus => {
               const now = new Date();
               const alertTime = data.timestamp?.toDate();
               if (!alertTime) return "active";
-              
+
               const timeDiff = now.getTime() - alertTime.getTime();
               const minutesDiff = timeDiff / (1000 * 60);
-              
-              // Sample logic - you can adjust based on your needs
+
               if (minutesDiff < 5) return "active";
               if (minutesDiff < 30) return "responding";
               return "resolved";
@@ -146,7 +142,7 @@ export default function PanicList({
             return alertObj;
           })
         );
-        
+
         setAlerts(alertsFromDb);
       } catch (err) {
         console.error("Firebase fetch error:", err);
@@ -178,9 +174,9 @@ export default function PanicList({
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+    if (minutes > 0) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
     return "Just now";
   };
 
@@ -226,9 +222,9 @@ export default function PanicList({
         <Card
           key={alert.id}
           className={`hover:shadow-lg transition-all border-2 ${
-            alert.status === 'active' 
-              ? 'border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20' 
-              : 'border-pink-100 dark:border-pink-900/20'
+            alert.status === "active"
+              ? "border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20"
+              : "border-pink-100 dark:border-pink-900/20"
           } hover:border-pink-200 dark:hover:border-pink-800/30`}
         >
           <CardHeader>
@@ -240,7 +236,8 @@ export default function PanicList({
                     Panic Alert - {alert.userName || "Unknown User"}
                   </CardTitle>
                   <Badge className={getStatusColor(alert.status)}>
-                    {alert.status.charAt(0).toUpperCase() + alert.status.slice(1)}
+                    {alert.status.charAt(0).toUpperCase() +
+                      alert.status.slice(1)}
                   </Badge>
                 </div>
                 <CardDescription className="text-gray-600 dark:text-gray-400">
@@ -267,10 +264,6 @@ export default function PanicList({
                 <div className="flex items-center gap-1.5">
                   <MapPin className="h-4 w-4" />
                   <span>{alert.location}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <User className="h-4 w-4" />
-                  <span>User ID: {alert.userId}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -338,15 +331,11 @@ export default function PanicList({
                   {selectedAlert && selectedAlert.id === alert.id && (
                     <DialogContent className="max-w-md">
                       <DialogHeader>
-                        <DialogTitle>
-                          Contact User
-                        </DialogTitle>
+                        <DialogTitle>Contact User</DialogTitle>
                         <DialogDescription>
                           Name: {selectedAlert.userName}
                           <br />
                           Phone: {selectedAlert.userPhone}
-                          <br />
-                          User ID: {selectedAlert.userId}
                         </DialogDescription>
                       </DialogHeader>
                     </DialogContent>
