@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, Users, FileText, TrendingUp, Heart, Clock } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { caseService, userService } from "@/lib/firestore-service"
+import { formatDescription } from "@/lib/descriptionFormatter"
 
 interface Case {
   id: string
@@ -245,7 +246,7 @@ export function DashboardStats() {
                       </div>
                     </div>
                     <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                      {truncateDescription(case_.description)}
+                      {formatDescription(truncateDescription(case_.description))}
                     </p>
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>Reporter: {case_.isAnonymous ? "Anonymous" : (case_.name !== "N/A" ? case_.name : "Not specified")}</span>
