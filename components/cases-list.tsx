@@ -102,44 +102,59 @@ export function CasesList({
         const casesCollectionRef = collection(db, "cases");
         const q = query(casesCollectionRef, orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
-        
+
         const casesFromDb = await Promise.all(
           querySnapshot.docs.map(async (docSnapshot) => {
             const data = docSnapshot.data();
-            {!data.priority && !data.panicScore && await storeSeverityIndex(data.uid, data.description || "")}
+            {
+              !data.priority &&
+                !data.panicScore &&
+                (await storeSeverityIndex(data.uid, data.description || ""));
+            }
             console.log(`Processing case ${docSnapshot.id}:`, {
               hasPriority: !!data.priority,
               hasPanicScore: !!data.panicScore,
-              description: data.description?.substring(0, 100) + "..."
+              description: data.description?.substring(0, 100) + "...",
             });
 
             // Check if we need to generate priority and panicScore
             if ((!data.priority || !data.panicScore) && data.description) {
-              console.log(`Calling storeSeverityIndex for case: ${docSnapshot.id}`);
-              
+              console.log(
+                `Calling storeSeverityIndex for case: ${docSnapshot.id}`
+              );
+
               try {
-                const success = await storeSeverityIndex(docSnapshot.id, data.description);
-                console.log(`storeSeverityIndex result for ${docSnapshot.id}:`, success);
-                
+                const success = await storeSeverityIndex(
+                  docSnapshot.id,
+                  data.description
+                );
+                console.log(
+                  `storeSeverityIndex result for ${docSnapshot.id}:`,
+                  success
+                );
+
                 if (success) {
                   // Refetch the document to get the updated data
                   const updatedDocRef = doc(db, "cases", docSnapshot.id);
                   const updatedDoc = await getDoc(updatedDocRef);
-                  
+
                   if (updatedDoc.exists()) {
                     const updatedData = updatedDoc.data();
                     console.log(`Updated data for ${docSnapshot.id}:`, {
                       priority: updatedData.priority,
-                      panicScore: updatedData.panicScore
+                      panicScore: updatedData.panicScore,
                     });
-                    
+
                     // Use the updated data
                     data.priority = updatedData.priority || data.priority;
                     data.panicScore = updatedData.panicScore || data.panicScore;
                   }
                 }
               } catch (error) {
-                console.error(`Failed to store severity index for ${docSnapshot.id}:`, error);
+                console.error(
+                  `Failed to store severity index for ${docSnapshot.id}:`,
+                  error
+                );
               }
             }
 
@@ -164,7 +179,7 @@ export function CasesList({
                 console.error("Error fetching user data:", userError);
               }
             }
-            
+
             const formatGeoPoint = (geoPoint: GeoPoint | undefined) => {
               if (geoPoint && geoPoint.latitude && geoPoint.longitude) {
                 return `${geoPoint.latitude.toFixed(
@@ -206,13 +221,13 @@ export function CasesList({
 
             console.log(`Final case object for ${docSnapshot.id}:`, {
               priority: caseObj.priority,
-              hasPanicScore: !!data.panicScore
+              hasPanicScore: !!data.panicScore,
             });
 
             return caseObj;
           })
         );
-        
+
         setCases(casesFromDb);
         console.log("All cases processed:", casesFromDb.length);
       } catch (err) {
@@ -339,7 +354,7 @@ export function CasesList({
                       variant="outline"
                       className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-300"
                     >
-                      {t("cases.notAnonymous")}
+                      Not anonymous
                     </Badge>
                   )}
                 </div>
@@ -364,8 +379,7 @@ export function CasesList({
                   <div className="flex items-center gap-1.5">
                     <FileText className="h-4 w-4" />
                     <span>
-                      {t("cases.submitted")}:{" "}
-                      {case_.createdAt.toLocaleDateString()}
+                      Submitted : {case_.createdAt.toLocaleDateString()}
                     </span>
                   </div>
                 )}
@@ -376,7 +390,7 @@ export function CasesList({
                 <div className="flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
                   <span>
-                    {getAttachmentCount(case_)} {t("cases.attachments_items")}
+                    {getAttachmentCount(case_)} Attachments
                   </span>
                 </div>
               </div>
@@ -392,15 +406,15 @@ export function CasesList({
                       className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      {t("cases.view_evidence")}
+                      View Evidence
                     </Button>
                   </DialogTrigger>
                   {selectedCase && selectedCase.id === case_.id && (
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>{t("cases.evidence_files")}</DialogTitle>
+                        <DialogTitle>Case Evidence Files</DialogTitle>
                         <DialogDescription>
-                          {t("cases.view_case_attachments")}
+                          View Case Attachments
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
@@ -503,7 +517,7 @@ export function CasesList({
                           (!selectedCase.attachmentAudio ||
                             selectedCase.attachmentAudio.length === 0) && (
                             <p className="text-sm text-muted-foreground text-center py-8">
-                              {t("cases.no_evidence_provided")}
+                              No evidence provided
                             </p>
                           )}
                       </div>
@@ -538,11 +552,13 @@ export function CasesList({
                             {t("cases.contact_case_owner")}
                           </DialogTitle>
                           <DialogDescription>
-                            Name: {`${selectedCase.reporterFirstName || ""} ${
+                            Name:{" "}
+                            {`${selectedCase.reporterFirstName || ""} ${
                               selectedCase.reporterLastName || ""
                             }`.trim() || "Not provided"}
                             <br />
-                            Phone No.: {selectedCase.reporterPhone || "Not provided"}
+                            Phone No.:{" "}
+                            {selectedCase.reporterPhone || "Not provided"}
                           </DialogDescription>
                         </DialogHeader>
                       </DialogContent>
