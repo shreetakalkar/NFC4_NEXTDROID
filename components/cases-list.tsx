@@ -30,14 +30,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Eye,
   MessageSquare,
@@ -46,16 +38,13 @@ import {
   FileText,
   Loader2,
   AlertCircle,
-  Send,
   Image as ImageIcon,
   Video,
   Volume2,
 } from "lucide-react";
-import Image from "next/image";
-import storeSeverityIndex from "@/lib/storeSeverityIndex";
 
 type CaseStatus = "pending" | "investigating" | "resolved";
-type CasePriority = "low" | "medium" | "high" | "urgent";
+type CasePriority = "low" | "medium" | "high" | "critical";
 
 interface Case {
   id: string;
@@ -71,11 +60,10 @@ interface Case {
   attachmentVideo?: string[];
   attachmentAudio?: string[];
   feedback?: string;
-  // Details for the person who reported the case
   reporterFirstName?: string;
   reporterLastName?: string;
   reporterPhone?: string;
-  panicScore?: number; // Added panicScore field
+  panicScore?: number;
 }
 
 interface CasesListProps {
@@ -92,8 +80,6 @@ export function CasesList({
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [contactMessage, setContactMessage] = useState<string>("");
-  const [contactMethod, setContactMethod] = useState<string>("email");
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -107,41 +93,6 @@ export function CasesList({
         const casesFromDb = await Promise.all(
           querySnapshot.docs.map(async (docSnapshot) => {
             const data = docSnapshot.data();
-            console.log(`Processing case ${docSnapshot.id}:`, {
-              hasPriority: !!data.priority,
-              hasPanicScore: !!data.panicScore,
-              description: data.description?.substring(0, 100) + "..."
-            });
-
-            // Check if we need to generate priority and panicScore
-            if ((!data.priority || !data.panicScore) && data.description) {
-              console.log(`Calling storeSeverityIndex for case: ${docSnapshot.id}`);
-
-              try {
-                const success = await storeSeverityIndex(docSnapshot.id, data.description);
-                console.log(`storeSeverityIndex result for ${docSnapshot.id}:`, success);
-
-                if (success) {
-                  // Refetch the document to get the updated data
-                  const updatedDocRef = doc(db, "cases", docSnapshot.id);
-                  const updatedDoc = await getDoc(updatedDocRef);
-
-                  if (updatedDoc.exists()) {
-                    const updatedData = updatedDoc.data();
-                    console.log(`Updated data for ${docSnapshot.id}:`, {
-                      priority: updatedData.priority,
-                      panicScore: updatedData.panicScore
-                    });
-
-                    // Use the updated data
-                    data.priority = updatedData.priority || data.priority;
-                    data.panicScore = updatedData.panicScore || data.panicScore;
-                  }
-                }
-              } catch (error) {
-                console.error(`Failed to store severity index for ${docSnapshot.id}:`, error);
-              }
-            }
 
             let reporterInfo = {};
 
@@ -158,7 +109,6 @@ export function CasesList({
                     reporterLastName: userData.lastName || "",
                     reporterPhone: userData.phoneNumber || "",
                   };
-                  console.log("Reporter info:", reporterInfo);
                 }
               } catch (userError) {
                 console.error("Error fetching user data:", userError);
@@ -190,7 +140,7 @@ export function CasesList({
               name: data.name || "No Title",
               description: data.description || "No description provided.",
               status: getStatusFromData(data.status),
-              priority: (data.priority?.toLowerCase() || "low") as CasePriority,
+              priority: data.priority || "low", // Direct from database
               isAnonymous: data.isAnonymous || false,
               location: formatGeoPoint(
                 data.incidentLocation || data.currentLocation
@@ -199,23 +149,17 @@ export function CasesList({
               attachmentVideo: data.attachmentVideo || [],
               attachmentAudio: data.attachmentAudio || [],
               feedback: data.feedback,
-              createdAt: data.createdAt?.toDate(),
-              incidentDate: data.incidentDate?.toDate(),
-              panicScore: data.panicScore, // Assign the panicScore
+              createdAt: data.createdAt?.toDate() || new Date(),
+              incidentDate: data.incidentDate?.toDate() || new Date(),
+              panicScore: data.panicScore, // Direct from database
               ...reporterInfo,
             } as Case;
-
-            console.log(`Final case object for ${docSnapshot.id}:`, {
-              priority: caseObj.priority,
-              panicScore: caseObj.panicScore
-            });
 
             return caseObj;
           })
         );
 
         setCases(casesFromDb);
-        console.log("All cases processed:", casesFromDb.length);
       } catch (err) {
         console.error("Firebase fetch error:", err);
         setError(t("common.error_fetching_cases"));
@@ -241,50 +185,39 @@ export function CasesList({
 
   const getPriorityColor = (priority: CasePriority) => {
     switch (priority) {
-      case "urgent":
-        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300";
+      case "critical":
+        return "text-red-600 bg-red-50 dark:bg-red-950/20 dark:text-red-300";
       case "high":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300";
+        return "text-orange-600 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-300";
       case "medium":
-        return "bg-pink-100 text-pink-800 dark:bg-pink-900/20 dark:text-pink-300";
+        return "text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 dark:text-yellow-300";
       case "low":
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
+        return "text-gray-600 bg-gray-50 dark:bg-gray-950/20 dark:text-gray-300";
     }
   };
 
-  // New function to get color based on panic score
-  const getPanicScoreColor = (score: number) => {
+  const getPanicScoreColor = (score: number | undefined) => {
+    if (!score && score !== 0) {
+      return "bg-gray-400 text-black dark:bg-gray-400 dark:text-black";
+    }
+    
     if (score >= 0.75) {
-      return "bg-rose-600 text-white dark:bg-rose-600 dark:text-white"; // High panic score (Red)
+      return "bg-rose-600 text-white dark:bg-rose-600 dark:text-white";
     } else if (score >= 0.5) {
-      return "bg-amber-400 text-black dark:bg-amber-400 dark:text-black"; // Medium panic score (Yellow)
+      return "bg-amber-400 text-black dark:bg-amber-400 dark:text-black";
     } else if (score >= 0.25) {
-      return "bg-green-500 text-white dark:bg-green-500 dark:text-white"; // Low panic score (Green)
+      return "bg-green-500 text-white dark:bg-green-500 dark:text-white";
     } else {
-      return "bg-gray-400 text-black dark:bg-gray-400 dark:text-black"; // Very low or undefined score (Gray)
+      return "bg-gray-400 text-black dark:bg-gray-400 dark:text-black";
     }
   };
-
 
   const getAttachmentCount = (case_: Case) => {
     const imageCount = case_.attachmentImage?.length || 0;
     const videoCount = case_.attachmentVideo?.length || 0;
     const audioCount = case_.attachmentAudio?.length || 0;
     return imageCount + videoCount + audioCount;
-  };
-
-  const handleContactSubmit = () => {
-    console.log("Contact submitted:", {
-      caseId: selectedCase?.id,
-      method: contactMethod,
-      message: contactMessage,
-    });
-
-    setContactMessage("");
-    setContactMethod("email");
-    setSelectedCase(null);
-    alert(t("cases.contact_sent_successfully"));
   };
 
   const filteredCases = cases.filter((case_) => {
@@ -337,14 +270,14 @@ export function CasesList({
                     {case_.name}
                   </CardTitle>
                   <Badge className={getPriorityColor(case_.priority)}>
-                    {t(`priority.${case_.priority}`)}
+                    {case_.priority.toUpperCase()}
                   </Badge>
                   <Badge className={getStatusColor(case_.status)}>
-                    {t(`status.${case_.status}`)}
+                    {case_.status.toUpperCase()}
                   </Badge>
                   {case_.panicScore !== undefined && (
                     <Badge className={getPanicScoreColor(case_.panicScore)}>
-                      Panic Score: {case_.panicScore.toFixed(2)}
+                      Panic: {case_.panicScore.toFixed(2)}
                     </Badge>
                   )}
                   {case_.isAnonymous ? (
@@ -352,7 +285,7 @@ export function CasesList({
                       variant="outline"
                       className="border-pink-200 text-pink-700 dark:border-pink-800 dark:text-pink-300"
                     >
-                      {t("cases.anonymous")}
+                      Anonymous
                     </Badge>
                   ) : (
                     <Badge
@@ -384,8 +317,7 @@ export function CasesList({
                   <div className="flex items-center gap-1.5">
                     <FileText className="h-4 w-4" />
                     <span>
-                      Cases submitted : {" "}
-                      {case_.createdAt.toLocaleDateString()}
+                      Submitted: {case_.createdAt.toLocaleDateString()}
                     </span>
                   </div>
                 )}
@@ -396,7 +328,7 @@ export function CasesList({
                 <div className="flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
                   <span>
-                    {getAttachmentCount(case_)} Case attachments
+                    {getAttachmentCount(case_)} Attachments
                   </span>
                 </div>
               </div>
@@ -412,13 +344,13 @@ export function CasesList({
                       className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      View evidence
+                      View Evidence
                     </Button>
                   </DialogTrigger>
                   {selectedCase && selectedCase.id === case_.id && (
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>{t("Evidence files")}</DialogTitle>
+                        <DialogTitle>Evidence Files</DialogTitle>
                         <DialogDescription>
                           View case attachments
                         </DialogDescription>
@@ -444,9 +376,7 @@ export function CasesList({
                                       <img
                                         src={imageUrl}
                                         alt={`Image Evidence ${index + 1}`}
-                                        fill
-                                        style={{ objectFit: "contain" }}
-                                        className="rounded-lg"
+                                        className="w-full h-full object-contain rounded-lg"
                                       />
                                     </div>
                                   </div>
@@ -536,8 +466,6 @@ export function CasesList({
                     onOpenChange={(isOpen) => {
                       if (!isOpen) {
                         setSelectedCase(null);
-                        setContactMessage("");
-                        setContactMethod("email");
                       }
                     }}
                   >
@@ -548,21 +476,21 @@ export function CasesList({
                         onClick={() => setSelectedCase(case_)}
                       >
                         <MessageSquare className="h-4 w-4 mr-2" />
-                        {t("cases.contact")}
+                        Contact
                       </Button>
                     </DialogTrigger>
                     {selectedCase && selectedCase.id === case_.id && (
                       <DialogContent className="max-w-md">
                         <DialogHeader>
                           <DialogTitle>
-                            {t("cases.contact_case_owner")}
+                            Contact Case Owner
                           </DialogTitle>
                           <DialogDescription>
                             Name: {`${selectedCase.reporterFirstName || ""} ${
                               selectedCase.reporterLastName || ""
                             }`.trim() || "Not provided"}
                             <br />
-                            Phone No.: {selectedCase.reporterPhone || "Not provided"}
+                            Phone: {selectedCase.reporterPhone || "Not provided"}
                           </DialogDescription>
                         </DialogHeader>
                       </DialogContent>
