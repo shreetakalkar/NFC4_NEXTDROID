@@ -159,13 +159,13 @@ export default function AdminDashboard() {
             <div className="flex items-center space-x-4">
               <LanguageSelector />
               <ThemeToggle />
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20 bg-transparent"
               >
                 {t("auth.logout") || "Logout"}
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function AdminDashboard() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-5 bg-white/50 dark:bg-gray-900/50 border border-pink-100 dark:border-pink-900/20">
+          <TabsList className="grid w-full grid-cols-4 bg-white/50 dark:bg-gray-900/50 border border-pink-100 dark:border-pink-900/20">
             <TabsTrigger
               value="overview"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
@@ -197,12 +197,12 @@ export default function AdminDashboard() {
             >
               {t("nav.cases") || "Cases"}
             </TabsTrigger>
-            <TabsTrigger
+            {/* <TabsTrigger
               value="reports"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
             >
               {t("nav.reports") || "Reports"}
-            </TabsTrigger>
+            </TabsTrigger> */}
             <TabsTrigger
               value="map"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-500 data-[state=active]:text-white"
@@ -214,7 +214,7 @@ export default function AdminDashboard() {
           <TabsContent value="overview" className="space-y-6">
             <DashboardStats />
 
-            <div className="grid gap-6 md:grid-cols-2">
+            {/* <div className="grid gap-6 md:grid-cols-2">
               <Card className="border-pink-100 dark:border-pink-900/20 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -299,7 +299,7 @@ export default function AdminDashboard() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </div> */}
           </TabsContent>
 
           <TabsContent value="panic-alerts" className="space-y-6">
@@ -348,10 +348,10 @@ export default function AdminDashboard() {
                 </Select>
               </div>
             </div>
-            <CasesList searchQuery={searchQuery} statusFilter={statusFilter} />
+            <CasesList searchQuery={searchQuery}/>
           </TabsContent>
 
-          <TabsContent value="reports" className="space-y-6">
+          {/* <TabsContent value="reports" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
                 {t("reports.title") || "Reports"}
@@ -392,7 +392,7 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
           <TabsContent value="map" className="space-y-6">
             <div className="flex items-center justify-between">

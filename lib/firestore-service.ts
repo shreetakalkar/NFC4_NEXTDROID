@@ -34,7 +34,7 @@ export interface Case {
   caseNumber: string
   title: string
   description: string
-  status: "pending" | "investigating" | "resolved" | "closed"
+  status: boolean
   priority: "low" | "medium" | "high" | "urgent"
   isAnonymous: boolean
   reporterId?: string
@@ -47,6 +47,7 @@ export interface Case {
   updatedAt: Timestamp
   evidenceCount?: number
   lastUpdate?: string
+  panicScore?: number
 }
 
 export interface Evidence {
@@ -168,17 +169,13 @@ export const caseService = {
   async getStats(): Promise<{
     total: number
     pending: number
-    investigating: number
     resolved: number
-    urgent: number
   }> {
     const allCases = await this.getAll()
     return {
       total: allCases.length,
-      pending: allCases.filter((c) => c.status === "pending").length,
-      investigating: allCases.filter((c) => c.status === "investigating").length,
-      resolved: allCases.filter((c) => c.status === "resolved").length,
-      urgent: allCases.filter((c) => c.priority === "urgent" && c.status !== "resolved").length,
+      pending: allCases.filter((c) => c.status === false).length,
+      resolved: allCases.filter((c) => c.status === true).length,
     }
   },
 }
