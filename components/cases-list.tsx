@@ -75,6 +75,7 @@ interface Case {
   reporterFirstName?: string;
   reporterLastName?: string;
   reporterPhone?: string;
+  panicScore?: number; // Added panicScore field
 }
 
 interface CasesListProps {
@@ -106,32 +107,19 @@ export function CasesList({
         const casesFromDb = await Promise.all(
           querySnapshot.docs.map(async (docSnapshot) => {
             const data = docSnapshot.data();
-            {
-              !data.priority &&
-                !data.panicScore &&
-                (await storeSeverityIndex(data.uid, data.description || ""));
-            }
             console.log(`Processing case ${docSnapshot.id}:`, {
               hasPriority: !!data.priority,
               hasPanicScore: !!data.panicScore,
-              description: data.description?.substring(0, 100) + "...",
+              description: data.description?.substring(0, 100) + "..."
             });
 
             // Check if we need to generate priority and panicScore
             if ((!data.priority || !data.panicScore) && data.description) {
-              console.log(
-                `Calling storeSeverityIndex for case: ${docSnapshot.id}`
-              );
+              console.log(`Calling storeSeverityIndex for case: ${docSnapshot.id}`);
 
               try {
-                const success = await storeSeverityIndex(
-                  docSnapshot.id,
-                  data.description
-                );
-                console.log(
-                  `storeSeverityIndex result for ${docSnapshot.id}:`,
-                  success
-                );
+                const success = await storeSeverityIndex(docSnapshot.id, data.description);
+                console.log(`storeSeverityIndex result for ${docSnapshot.id}:`, success);
 
                 if (success) {
                   // Refetch the document to get the updated data
@@ -142,7 +130,7 @@ export function CasesList({
                     const updatedData = updatedDoc.data();
                     console.log(`Updated data for ${docSnapshot.id}:`, {
                       priority: updatedData.priority,
-                      panicScore: updatedData.panicScore,
+                      panicScore: updatedData.panicScore
                     });
 
                     // Use the updated data
@@ -151,10 +139,7 @@ export function CasesList({
                   }
                 }
               } catch (error) {
-                console.error(
-                  `Failed to store severity index for ${docSnapshot.id}:`,
-                  error
-                );
+                console.error(`Failed to store severity index for ${docSnapshot.id}:`, error);
               }
             }
 
@@ -216,12 +201,13 @@ export function CasesList({
               feedback: data.feedback,
               createdAt: data.createdAt?.toDate(),
               incidentDate: data.incidentDate?.toDate(),
+              panicScore: data.panicScore, // Assign the panicScore
               ...reporterInfo,
             } as Case;
 
             console.log(`Final case object for ${docSnapshot.id}:`, {
               priority: caseObj.priority,
-              hasPanicScore: !!data.panicScore,
+              panicScore: caseObj.panicScore
             });
 
             return caseObj;
@@ -266,6 +252,20 @@ export function CasesList({
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
     }
   };
+
+  // New function to get color based on panic score
+  const getPanicScoreColor = (score: number) => {
+    if (score >= 0.75) {
+      return "bg-rose-600 text-white dark:bg-rose-600 dark:text-white"; // High panic score (Red)
+    } else if (score >= 0.5) {
+      return "bg-amber-400 text-black dark:bg-amber-400 dark:text-black"; // Medium panic score (Yellow)
+    } else if (score >= 0.25) {
+      return "bg-green-500 text-white dark:bg-green-500 dark:text-white"; // Low panic score (Green)
+    } else {
+      return "bg-gray-400 text-black dark:bg-gray-400 dark:text-black"; // Very low or undefined score (Gray)
+    }
+  };
+
 
   const getAttachmentCount = (case_: Case) => {
     const imageCount = case_.attachmentImage?.length || 0;
@@ -342,6 +342,11 @@ export function CasesList({
                   <Badge className={getStatusColor(case_.status)}>
                     {t(`status.${case_.status}`)}
                   </Badge>
+                  {case_.panicScore !== undefined && (
+                    <Badge className={getPanicScoreColor(case_.panicScore)}>
+                      Panic Score: {case_.panicScore.toFixed(2)}
+                    </Badge>
+                  )}
                   {case_.isAnonymous ? (
                     <Badge
                       variant="outline"
@@ -354,7 +359,7 @@ export function CasesList({
                       variant="outline"
                       className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-300"
                     >
-                      Not anonymous
+                      {t("cases.notAnonymous")}
                     </Badge>
                   )}
                 </div>
@@ -379,7 +384,8 @@ export function CasesList({
                   <div className="flex items-center gap-1.5">
                     <FileText className="h-4 w-4" />
                     <span>
-                      Submitted : {case_.createdAt.toLocaleDateString()}
+                      {t("cases.submitted")}:{" "}
+                      {case_.createdAt.toLocaleDateString()}
                     </span>
                   </div>
                 )}
@@ -390,7 +396,7 @@ export function CasesList({
                 <div className="flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
                   <span>
-                    {getAttachmentCount(case_)} Attachments
+                    {getAttachmentCount(case_)} {t("cases.attachments_items")}
                   </span>
                 </div>
               </div>
@@ -406,15 +412,15 @@ export function CasesList({
                       className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      View Evidence
+                      {t("cases.view_evidence")}
                     </Button>
                   </DialogTrigger>
                   {selectedCase && selectedCase.id === case_.id && (
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Case Evidence Files</DialogTitle>
+                        <DialogTitle>{t("cases.evidence_files")}</DialogTitle>
                         <DialogDescription>
-                          View Case Attachments
+                          {t("cases.view_case_attachments")}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
@@ -517,7 +523,7 @@ export function CasesList({
                           (!selectedCase.attachmentAudio ||
                             selectedCase.attachmentAudio.length === 0) && (
                             <p className="text-sm text-muted-foreground text-center py-8">
-                              No evidence provided
+                              {t("cases.no_evidence_provided")}
                             </p>
                           )}
                       </div>
@@ -552,13 +558,11 @@ export function CasesList({
                             {t("cases.contact_case_owner")}
                           </DialogTitle>
                           <DialogDescription>
-                            Name:{" "}
-                            {`${selectedCase.reporterFirstName || ""} ${
+                            Name: {`${selectedCase.reporterFirstName || ""} ${
                               selectedCase.reporterLastName || ""
                             }`.trim() || "Not provided"}
                             <br />
-                            Phone No.:{" "}
-                            {selectedCase.reporterPhone || "Not provided"}
+                            Phone No.: {selectedCase.reporterPhone || "Not provided"}
                           </DialogDescription>
                         </DialogHeader>
                       </DialogContent>
