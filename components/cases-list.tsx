@@ -359,7 +359,7 @@ export function CasesList({
                       variant="outline"
                       className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-300"
                     >
-                      {t("cases.notAnonymous")}
+                      Not Anonymous
                     </Badge>
                   )}
                 </div>
@@ -384,7 +384,7 @@ export function CasesList({
                   <div className="flex items-center gap-1.5">
                     <FileText className="h-4 w-4" />
                     <span>
-                      {t("cases.submitted")}:{" "}
+                      Cases submitted : {" "}
                       {case_.createdAt.toLocaleDateString()}
                     </span>
                   </div>
@@ -396,7 +396,7 @@ export function CasesList({
                 <div className="flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
                   <span>
-                    {getAttachmentCount(case_)} {t("cases.attachments_items")}
+                    {getAttachmentCount(case_)} Case attachments
                   </span>
                 </div>
               </div>
@@ -412,15 +412,15 @@ export function CasesList({
                       className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      {t("cases.view_evidence")}
+                      View evidence
                     </Button>
                   </DialogTrigger>
                   {selectedCase && selectedCase.id === case_.id && (
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>{t("cases.evidence_files")}</DialogTitle>
+                        <DialogTitle>{t("Evidence files")}</DialogTitle>
                         <DialogDescription>
-                          {t("cases.view_case_attachments")}
+                          View case attachments
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-6 py-4">
@@ -523,7 +523,7 @@ export function CasesList({
                           (!selectedCase.attachmentAudio ||
                             selectedCase.attachmentAudio.length === 0) && (
                             <p className="text-sm text-muted-foreground text-center py-8">
-                              {t("cases.no_evidence_provided")}
+                              No evidence provided
                             </p>
                           )}
                       </div>
