@@ -45,6 +45,11 @@ import {
   Video,
   Volume2,
   RefreshCw,
+  AlertTriangle,
+  Shield,
+  Users,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { formatDescription } from "@/lib/descriptionFormatter";
 
@@ -70,6 +75,25 @@ interface Case {
   reporterPhone?: string;
   panicScore?: number;
   uid?: string;
+  harasserName?: string;
+  harasserReportCount?: number;
+  isHighRiskHarasser?: boolean;
+}
+
+interface AggregatedCase {
+  harasserName: string;
+  normalizedName: string;
+  cases: Case[];
+  totalReports: number;
+  highestPriority: CasePriority;
+  latestIncidentDate: Date;
+  totalPanicScore: number;
+  averagePanicScore: number;
+  locations: string[];
+  isHighRisk: boolean;
+  riskLevel: "low" | "medium" | "high" | "critical";
+  statusCounts: Record<CaseStatus, number>;
+  totalAttachments: number;
 }
 
 interface CasesListProps {
@@ -86,7 +110,9 @@ export function CasesList({
 }: CasesListProps) {
   const { t } = useTranslation();
   const [cases, setCases] = useState<Case[]>([]);
+  const [aggregatedCases, setAggregatedCases] = useState<AggregatedCase[]>([]);
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -138,12 +164,16 @@ export function CasesList({
     []
   );
 
+  // Function to normalize harasser names
+  const normalizeHarasserName = useCallback((name: string): string => {
+    return name.trim().toLowerCase().replace(/\s+/g, ' ');
+  }, []);
+
   // Batch fetch user data for better performance
   const fetchUsersData = useCallback(async (userIds: string[]) => {
     if (userIds.length === 0) return new Map();
 
     try {
-      // Firebase has a limit of 10 documents per 'in' query, so we need to batch
       const userDataMap = new Map();
       const batches = [];
 
@@ -176,6 +206,126 @@ export function CasesList({
     }
   }, []);
 
+  // Function to get priority weight for sorting
+  const getPriorityWeight = useCallback((priority: CasePriority): number => {
+    switch (priority.toLowerCase()) {
+      case "critical": return 4;
+      case "high": return 3;
+      case "medium": return 2;
+      case "low": return 1;
+      default: return 0;
+    }
+  }, []);
+
+  // Function to determine risk level based on report count and other factors
+  const calculateRiskLevel = useCallback((
+    reportCount: number,
+    averagePanicScore: number,
+    highestPriority: CasePriority
+  ): "low" | "medium" | "high" | "critical" => {
+    const priorityWeight = getPriorityWeight(highestPriority);
+    
+    if (reportCount >= 10 || (reportCount >= 5 && averagePanicScore >= 75) || priorityWeight >= 4) {
+      return "critical";
+    } else if (reportCount >= 5 || (reportCount >= 3 && averagePanicScore >= 50) || priorityWeight >= 3) {
+      return "high";
+    } else if (reportCount >= 3 || averagePanicScore >= 40 || priorityWeight >= 2) {
+      return "medium";
+    } else {
+      return "low";
+    }
+  }, [getPriorityWeight]);
+
+  // Function to aggregate cases by harasser name
+  const aggregateCases = useCallback((cases: Case[]): AggregatedCase[] => {
+    const grouped = new Map<string, Case[]>();
+    
+    // Group cases by normalized harasser name
+    cases.forEach(case_ => {
+      const harasserName = case_.harasserName;
+      if (harasserName && harasserName.trim()) {
+        const normalizedName = normalizeHarasserName(harasserName);
+        if (!grouped.has(normalizedName)) {
+          grouped.set(normalizedName, []);
+        }
+        grouped.get(normalizedName)!.push(case_);
+      }
+    });
+
+    // Create aggregated cases
+    const aggregated: AggregatedCase[] = Array.from(grouped.entries()).map(([normalizedName, casesGroup]) => {
+      const totalReports = casesGroup.length;
+      const harasserName = casesGroup[0].harasserName || "Unknown";
+      
+      // Calculate highest priority
+      const highestPriority = casesGroup.reduce((highest, case_) => {
+        return getPriorityWeight(case_.priority) > getPriorityWeight(highest) ? case_.priority : highest;
+      }, "low" as CasePriority);
+
+      // Calculate latest incident date
+      const latestIncidentDate = casesGroup.reduce((latest, case_) => {
+        return case_.incidentDate > latest ? case_.incidentDate : latest;
+      }, new Date(0));
+
+      // Calculate panic scores
+      const validPanicScores = casesGroup.filter(c => c.panicScore !== undefined).map(c => c.panicScore!);
+      const totalPanicScore = validPanicScores.reduce((sum, score) => sum + score, 0);
+      const averagePanicScore = validPanicScores.length > 0 ? totalPanicScore / validPanicScores.length : 0;
+
+      // Get unique locations
+      const locations = Array.from(new Set(casesGroup.map(c => c.location)));
+
+      // Calculate status counts
+      const statusCounts = casesGroup.reduce((counts, case_) => {
+        counts[case_.status] = (counts[case_.status] || 0) + 1;
+        return counts;
+      }, {} as Record<CaseStatus, number>);
+
+      // Calculate total attachments
+      const totalAttachments = casesGroup.reduce((total, case_) => {
+        const imageCount = case_.attachmentImage?.length || 0;
+        const videoCount = case_.attachmentVideo?.length || 0;
+        const audioCount = case_.attachmentAudio?.length || 0;
+        return total + imageCount + videoCount + audioCount;
+      }, 0);
+
+      // Determine risk level
+      const riskLevel = calculateRiskLevel(totalReports, averagePanicScore, highestPriority);
+      const isHighRisk = riskLevel === "critical" || riskLevel === "high";
+
+      return {
+        harasserName,
+        normalizedName,
+        cases: casesGroup.sort((a, b) => b.incidentDate.getTime() - a.incidentDate.getTime()),
+        totalReports,
+        highestPriority,
+        latestIncidentDate,
+        totalPanicScore,
+        averagePanicScore,
+        locations,
+        isHighRisk,
+        riskLevel,
+        statusCounts,
+        totalAttachments,
+      };
+    });
+
+    // Sort by importance (risk level, then by report count, then by latest incident)
+    return aggregated.sort((a, b) => {
+      // First sort by risk level (critical > high > medium > low)
+      const riskWeights = { critical: 4, high: 3, medium: 2, low: 1 };
+      const riskDiff = riskWeights[b.riskLevel] - riskWeights[a.riskLevel];
+      if (riskDiff !== 0) return riskDiff;
+
+      // Then by total reports (descending)
+      const reportDiff = b.totalReports - a.totalReports;
+      if (reportDiff !== 0) return reportDiff;
+
+      // Finally by latest incident date (most recent first)
+      return b.latestIncidentDate.getTime() - a.latestIncidentDate.getTime();
+    });
+  }, [normalizeHarasserName, getPriorityWeight, calculateRiskLevel]);
+
   const fetchCases = useCallback(async () => {
     setError(null);
     try {
@@ -207,7 +357,7 @@ export function CasesList({
               ? usersDataMap.get(data.uid)
               : {};
 
-          // Handle status field - it can be boolean or string
+          // Handle status field
           const getStatusFromData = (statusData: any): CaseStatus => {
             if (typeof statusData === "boolean") {
               return statusData ? "resolved" : "pending";
@@ -222,6 +372,9 @@ export function CasesList({
           const location = await formatGeoPoint(
             data.incidentLocation || data.currentLocation
           );
+
+          // Extract harasser information
+          const harasserName = data.name;
 
           const caseObj: Case = {
             id: docSnapshot.id,
@@ -239,6 +392,7 @@ export function CasesList({
             incidentDate: data.incidentDate?.toDate() || new Date(),
             panicScore: data.panicScore,
             uid: data.uid,
+            harasserName: harasserName,
             ...reporterInfo,
           };
 
@@ -247,11 +401,12 @@ export function CasesList({
       );
 
       setCases(casesFromDb);
+      setAggregatedCases(aggregateCases(casesFromDb));
     } catch (err) {
       console.error("Firebase fetch error:", err);
       setError(t("common.error_fetching_cases"));
     }
-  }, [t, formatGeoPoint, fetchUsersData]);
+  }, [t, formatGeoPoint, fetchUsersData, aggregateCases]);
 
   useEffect(() => {
     const loadCases = async () => {
@@ -267,6 +422,16 @@ export function CasesList({
     setIsRefreshing(true);
     await fetchCases();
     setIsRefreshing(false);
+  };
+
+  const toggleGroupExpansion = (normalizedName: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(normalizedName)) {
+      newExpanded.delete(normalizedName);
+    } else {
+      newExpanded.add(normalizedName);
+    }
+    setExpandedGroups(newExpanded);
   };
 
   const getStatusColor = (status: CaseStatus) => {
@@ -295,19 +460,31 @@ export function CasesList({
     }
   };
 
-  const getPanicScoreColor = (score: number | undefined) => {
-    if (!score && score !== 0) {
-      return "bg-gray-400 text-black dark:bg-gray-400 dark:text-black";
+  const getRiskLevelColor = (riskLevel: "low" | "medium" | "high" | "critical") => {
+    switch (riskLevel) {
+      case "critical":
+        return "bg-red-600 text-white border-red-700";
+      case "high":
+        return "bg-red-500 text-white border-red-600";
+      case "medium":
+        return "bg-orange-500 text-white border-orange-600";
+      case "low":
+      default:
+        return "bg-yellow-500 text-black border-yellow-600";
     }
+  };
 
-    if (score >= 75) {
-      return "bg-rose-600 text-white dark:bg-rose-600 dark:text-white";
-    } else if (score >= 50) {
-      return "bg-amber-400 text-black dark:bg-amber-400 dark:text-black";
-    } else if (score >= 25) {
-      return "bg-green-500 text-white dark:bg-green-500 dark:text-white";
-    } else {
-      return "bg-gray-400 text-black dark:bg-gray-400 dark:text-black";
+  const getGroupCardStyling = (riskLevel: "low" | "medium" | "high" | "critical") => {
+    switch (riskLevel) {
+      case "critical":
+        return "border-red-500 bg-red-50/50 dark:bg-red-950/30 shadow-red-100 dark:shadow-red-900/20";
+      case "high":
+        return "border-red-400 bg-red-50/30 dark:bg-red-950/20 shadow-red-50 dark:shadow-red-900/10";
+      case "medium":
+        return "border-orange-400 bg-orange-50/30 dark:bg-orange-950/20";
+      case "low":
+      default:
+        return "border-yellow-300 bg-yellow-50/20 dark:bg-yellow-950/10";
     }
   };
 
@@ -318,17 +495,22 @@ export function CasesList({
     return imageCount + videoCount + audioCount;
   }, []);
 
-  const filteredCases = useMemo(() => {
-    return cases.filter((case_) => {
-      const matchesSearch =
-        case_.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        case_.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        case_.location.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || case_.status === statusFilter;
+  const filteredAggregatedCases = useMemo(() => {
+    return aggregatedCases.filter((aggregated) => {
+      const matchesSearch = 
+        aggregated.harasserName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        aggregated.cases.some(case_ => 
+          case_.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          case_.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          case_.location.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      
+      const matchesStatus = statusFilter === "all" || 
+        aggregated.cases.some(case_ => case_.status === statusFilter);
+        
       return matchesSearch && matchesStatus;
     });
-  }, [cases, searchQuery, statusFilter]);
+  }, [aggregatedCases, searchQuery, statusFilter]);
 
   if (isLoading) {
     return (
@@ -352,11 +534,11 @@ export function CasesList({
     );
   }
 
-  if (!isLoading && filteredCases.length === 0) {
+  if (!isLoading && filteredAggregatedCases.length === 0) {
     return (
       <div className="text-center p-10 text-muted-foreground">
         <p className="mb-4">{t("common.no_cases_found")}</p>
-        {cases.length === 0 && (
+        {aggregatedCases.length === 0 && (
           <Button onClick={handleRefresh} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -379,259 +561,331 @@ export function CasesList({
           <RefreshCw
             className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
           />
-          Refresh ({filteredCases.length})
+          Refresh ({filteredAggregatedCases.length} suspects, {cases.filter(c => c.harasserName).length} total cases)
         </Button>
       </div>
 
-      {filteredCases.map((case_) => (
+      {filteredAggregatedCases.map((aggregated) => (
         <Card
-          key={case_.id}
-          className="hover:shadow-lg transition-all border-pink-100 dark:border-pink-900/20 hover:border-pink-200 dark:hover:border-pink-800/30"
+          key={aggregated.normalizedName}
+          className={`${getGroupCardStyling(aggregated.riskLevel)} hover:shadow-lg transition-all`}
         >
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center flex-wrap gap-2">
-                  <CardTitle className="text-lg text-gray-900 dark:text-gray-100">
-                    {case_.name}
+              <div className="space-y-3 flex-1">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleGroupExpansion(aggregated.normalizedName)}
+                    className="p-1 h-8 w-8"
+                  >
+                    {expandedGroups.has(aggregated.normalizedName) ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Suspect: {aggregated.harasserName}
                   </CardTitle>
-                  <Badge className={getPriorityColor(case_.priority)}>
-                    {case_.priority.toUpperCase()}
-                  </Badge>
-                  <Badge className={getStatusColor(case_.status)}>
-                    {case_.status.toUpperCase()}
-                  </Badge>
-                  {case_.panicScore !== undefined && (
-                    <Badge className={getPanicScoreColor(case_.panicScore)}>
-                      Panic: {case_.panicScore.toFixed(2)}
-                    </Badge>
-                  )}
-                  {case_.isAnonymous ? (
-                    <Badge
-                      variant="outline"
-                      className="border-pink-200 text-pink-700 dark:border-pink-800 dark:text-pink-300"
-                    >
-                      Anonymous
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-green-200 text-green-700 dark:border-green-800 dark:text-green-300"
-                    >
-                      Not Anonymous
-                    </Badge>
-                  )}
                 </div>
-                <CardDescription className="text-gray-600 dark:text-gray-400">
-                  {formatDescription(case_.description)}
-                </CardDescription>
-              </div>
-              {case_.incidentDate && (
-                <div className="text-sm text-muted-foreground text-right flex-shrink-0">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4" />
-                    <span>{case_.incidentDate.toLocaleDateString()}</span>
+
+                <div className="flex items-center flex-wrap gap-2">
+                  <Badge className={getRiskLevelColor(aggregated.riskLevel)}>
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {aggregated.riskLevel.toUpperCase()} RISK
+                  </Badge>
+                  <Badge variant="destructive">
+                    <Users className="h-3 w-3 mr-1" />
+                    {aggregated.totalReports} Reports
+                  </Badge>
+                  <Badge className={getPriorityColor(aggregated.highestPriority)}>
+                    Highest Priority: {aggregated.highestPriority.toUpperCase()}
+                  </Badge>
+                  {aggregated.averagePanicScore > 0 && (
+                    <Badge variant="outline" className="border-purple-200 text-purple-700">
+                      Avg Panic: {aggregated.averagePanicScore.toFixed(1)}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="border-blue-200 text-blue-700">
+                    <Eye className="h-3 w-3 mr-1" />
+                    {aggregated.totalAttachments} Evidence Files
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Status Distribution:</span>
+                    <div className="flex gap-1 mt-1">
+                      {Object.entries(aggregated.statusCounts).map(([status, count]) => (
+                        <Badge key={status} className={getStatusColor(status as CaseStatus)} variant="secondary">
+                          {status}: {count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Locations ({aggregated.locations.length}):</span>
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                      {aggregated.locations.slice(0, 2).join(", ")}
+                      {aggregated.locations.length > 2 && ` +${aggregated.locations.length - 2} more`}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Latest Incident:</span>
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                      {aggregated.latestIncidentDate.toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between flex-wrap gap-4 items-center">
-              <div className="flex gap-4 text-sm text-muted-foreground items-center flex-wrap">
-                {case_.createdAt && (
-                  <div className="flex items-center gap-1.5">
-                    <FileText className="h-4 w-4" />
-                    <span>
-                      Submitted: {case_.createdAt.toLocaleDateString()}
+
+                {aggregated.riskLevel === "critical" && (
+                  <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-950/50 rounded-md border border-red-300 dark:border-red-700">
+                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                      CRITICAL THREAT: This suspect has {aggregated.totalReports} reports with high risk indicators. Immediate attention required.
                     </span>
                   </div>
                 )}
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4" />
-                  <span>{case_.location}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Eye className="h-4 w-4" />
-                  <span>{getAttachmentCount(case_)} Attachments</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Dialog
-                  onOpenChange={(isOpen) => !isOpen && setSelectedCase(null)}
-                >
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedCase(case_)}
-                      className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Evidence
-                    </Button>
-                  </DialogTrigger>
-                  {selectedCase && selectedCase.id === case_.id && (
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Evidence Files</DialogTitle>
-                        <DialogDescription>
-                          View case attachments for "{selectedCase.name}"
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-6 py-4">
-                        {/* Image Attachments */}
-                        {selectedCase.attachmentImage &&
-                          selectedCase.attachmentImage.length > 0 && (
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-2">
-                                <ImageIcon className="h-5 w-5" />
-                                <h3 className="text-md font-medium">
-                                  Image Evidence (
-                                  {selectedCase.attachmentImage.length})
-                                </h3>
-                              </div>
-                              {selectedCase.attachmentImage.map(
-                                (imageUrl, index) => (
-                                  <div
-                                    key={`img-${index}`}
-                                    className="bg-muted rounded-lg overflow-hidden border"
-                                  >
-                                    <div className="relative w-full aspect-video">
-                                      <img
-                                        src={imageUrl}
-                                        alt={`Image Evidence ${index + 1}`}
-                                        className="w-full h-full object-contain rounded-lg"
-                                        loading="lazy"
-                                      />
-                                    </div>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          )}
-
-                        {/* Video Attachments */}
-                        {selectedCase.attachmentVideo &&
-                          selectedCase.attachmentVideo.length > 0 && (
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-2">
-                                <Video className="h-5 w-5" />
-                                <h3 className="text-md font-medium">
-                                  Video Evidence (
-                                  {selectedCase.attachmentVideo.length})
-                                </h3>
-                              </div>
-                              {selectedCase.attachmentVideo.map(
-                                (videoUrl, index) => (
-                                  <div
-                                    key={`vid-${index}`}
-                                    className="bg-muted rounded-lg overflow-hidden border"
-                                  >
-                                    <video
-                                      src={videoUrl}
-                                      controls
-                                      className="w-full aspect-video rounded-lg"
-                                      preload="metadata"
-                                    >
-                                      Your browser does not support the video
-                                      tag.
-                                    </video>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          )}
-
-                        {/* Audio Attachments */}
-                        {selectedCase.attachmentAudio &&
-                          selectedCase.attachmentAudio.length > 0 && (
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-2">
-                                <Volume2 className="h-5 w-5" />
-                                <h3 className="text-md font-medium">
-                                  Audio Evidence (
-                                  {selectedCase.attachmentAudio.length})
-                                </h3>
-                              </div>
-                              {selectedCase.attachmentAudio.map(
-                                (audioUrl, index) => (
-                                  <div
-                                    key={`aud-${index}`}
-                                    className="bg-muted rounded-lg overflow-hidden border p-4"
-                                  >
-                                    <audio
-                                      src={audioUrl}
-                                      controls
-                                      className="w-full"
-                                      preload="metadata"
-                                    >
-                                      Your browser does not support the audio
-                                      tag.
-                                    </audio>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          )}
-
-                        {/* No attachments */}
-                        {(!selectedCase.attachmentImage ||
-                          selectedCase.attachmentImage.length === 0) &&
-                          (!selectedCase.attachmentVideo ||
-                            selectedCase.attachmentVideo.length === 0) &&
-                          (!selectedCase.attachmentAudio ||
-                            selectedCase.attachmentAudio.length === 0) && (
-                            <p className="text-sm text-muted-foreground text-center py-8">
-                              No evidence provided
-                            </p>
-                          )}
-                      </div>
-                    </DialogContent>
-                  )}
-                </Dialog>
-
-                {!case_.isAnonymous && (
-                  <Dialog
-                    onOpenChange={(isOpen) => {
-                      if (!isOpen) {
-                        setSelectedCase(null);
-                      }
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        className="bg-rose-600 hover:bg-rose-700"
-                        onClick={() => setSelectedCase(case_)}
-                      >
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Contact
-                      </Button>
-                    </DialogTrigger>
-                    {selectedCase && selectedCase.id === case_.id && (
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Contact Case Owner</DialogTitle>
-                          <DialogDescription>
-                            <strong>Case:</strong> {selectedCase.name}
-                            <br />
-                            <strong>Name:</strong>{" "}
-                            {`${selectedCase.reporterFirstName || ""} ${
-                              selectedCase.reporterLastName || ""
-                            }`.trim() || "Not provided"}
-                            <br />
-                            <strong>Phone:</strong>{" "}
-                            {selectedCase.reporterPhone || "Not provided"}
-                          </DialogDescription>
-                        </DialogHeader>
-                      </DialogContent>
-                    )}
-                  </Dialog>
-                )}
               </div>
             </div>
-          </CardContent>
+          </CardHeader>
+
+          {/* Expanded individual cases */}
+          {expandedGroups.has(aggregated.normalizedName) && (
+            <CardContent>
+              <div className="space-y-3 border-t pt-4">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+                  Individual Cases ({aggregated.cases.length}):
+                </h4>
+                {aggregated.cases.map((case_) => (
+                  <Card key={case_.id} className="border-l-4 border-l-rose-500 bg-white dark:bg-gray-950">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <CardTitle className="text-base text-gray-900 dark:text-gray-100">
+                              {case_.name}
+                            </CardTitle>
+                            <Badge className={getPriorityColor(case_.priority)}>
+                              {case_.priority.toUpperCase()}
+                            </Badge>
+                            <Badge className={getStatusColor(case_.status)}>
+                              {case_.status.toUpperCase()}
+                            </Badge>
+                            {case_.panicScore !== undefined && (
+                              <Badge variant="outline" className="border-purple-200 text-purple-700">
+                                Panic: {case_.panicScore.toFixed(2)}
+                              </Badge>
+                            )}
+                          </div>
+                          <CardDescription className="text-gray-600 dark:text-gray-400">
+                            {formatDescription(case_.description)}
+                          </CardDescription>
+                        </div>
+                        <div className="text-sm text-muted-foreground text-right flex-shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="h-4 w-4" />
+                            <span>{case_.incidentDate.toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="flex justify-between flex-wrap gap-4 items-center">
+                        <div className="flex gap-4 text-sm text-muted-foreground items-center flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <FileText className="h-4 w-4" />
+                            <span>Submitted: {case_.createdAt.toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4" />
+                            <span>{case_.location}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Eye className="h-4 w-4" />
+                            <span>{getAttachmentCount(case_)} Attachments</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Dialog onOpenChange={(isOpen) => !isOpen && setSelectedCase(null)}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedCase(case_)}
+                                className="border-pink-200 hover:bg-pink-50 dark:border-pink-800 dark:hover:bg-pink-950/20"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Evidence
+                              </Button>
+                            </DialogTrigger>
+                            {selectedCase && selectedCase.id === case_.id && (
+                              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle>Evidence Files</DialogTitle>
+                                  <DialogDescription>
+                                    View case attachments for "{selectedCase.name}"
+                                    {selectedCase.harasserName && (
+                                      <>
+                                        <br />
+                                        <span className="font-medium">Suspect: </span>
+                                        <span className="text-red-600 font-semibold">
+                                          {selectedCase.harasserName}
+                                        </span>
+                                      </>
+                                    )}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-6 py-4">
+                                  {/* Image Attachments */}
+                                  {selectedCase.attachmentImage &&
+                                    selectedCase.attachmentImage.length > 0 && (
+                                      <div className="space-y-4">
+                                        <div className="flex items-center gap-2">
+                                          <ImageIcon className="h-5 w-5" />
+                                          <h3 className="text-md font-medium">
+                                            Image Evidence ({selectedCase.attachmentImage.length})
+                                          </h3>
+                                        </div>
+                                        {selectedCase.attachmentImage.map(
+                                          (imageUrl, index) => (
+                                            <div
+                                              key={`img-${index}`}
+                                              className="bg-muted rounded-lg overflow-hidden border"
+                                            >
+                                              <div className="relative w-full aspect-video">
+                                                <img
+                                                  src={imageUrl}
+                                                  alt={`Image Evidence ${index + 1}`}
+                                                  className="w-full h-full object-contain rounded-lg"
+                                                  loading="lazy"
+                                                />
+                                              </div>
+                                            </div>
+                                          )
+                                        )}
+                                      </div>
+                                    )}
+
+                                  {/* Video Attachments */}
+                                  {selectedCase.attachmentVideo &&
+                                    selectedCase.attachmentVideo.length > 0 && (
+                                      <div className="space-y-4">
+                                        <div className="flex items-center gap-2">
+                                          <Video className="h-5 w-5" />
+                                          <h3 className="text-md font-medium">
+                                            Video Evidence ({selectedCase.attachmentVideo.length})
+                                          </h3>
+                                        </div>
+                                        {selectedCase.attachmentVideo.map(
+                                          (videoUrl, index) => (
+                                            <div
+                                              key={`vid-${index}`}
+                                              className="bg-muted rounded-lg overflow-hidden border"
+                                            >
+                                              <video
+                                                src={videoUrl}
+                                                controls
+                                                className="w-full aspect-video rounded-lg"
+                                                preload="metadata"
+                                              >
+                                                Your browser does not support the video tag.
+                                              </video>
+                                            </div>
+                                          )
+                                        )}
+                                      </div>
+                                    )}
+
+                                  {/* Audio Attachments */}
+                                  {selectedCase.attachmentAudio &&
+                                    selectedCase.attachmentAudio.length > 0 && (
+                                      <div className="space-y-4">
+                                        <div className="flex items-center gap-2">
+                                          <Volume2 className="h-5 w-5" />
+                                          <h3 className="text-md font-medium">
+                                            Audio Evidence ({selectedCase.attachmentAudio.length})
+                                          </h3>
+                                        </div>
+                                        {selectedCase.attachmentAudio.map(
+                                          (audioUrl, index) => (
+                                            <div
+                                              key={`aud-${index}`}
+                                              className="bg-muted rounded-lg overflow-hidden border p-4"
+                                            >
+                                              <audio
+                                                src={audioUrl}
+                                                controls
+                                                className="w-full"
+                                                preload="metadata"
+                                              >
+                                                Your browser does not support the audio tag.
+                                              </audio>
+                                            </div>
+                                          )
+                                        )}
+                                      </div>
+                                    )}
+
+                                  {/* No attachments */}
+                                  {(!selectedCase.attachmentImage ||
+                                    selectedCase.attachmentImage.length === 0) &&
+                                    (!selectedCase.attachmentVideo ||
+                                      selectedCase.attachmentVideo.length === 0) &&
+                                    (!selectedCase.attachmentAudio ||
+                                      selectedCase.attachmentAudio.length === 0) && (
+                                      <p className="text-sm text-muted-foreground text-center py-8">
+                                        No evidence provided
+                                      </p>
+                                    )}
+                                </div>
+                              </DialogContent>
+                            )}
+                          </Dialog>
+
+                          {!case_.isAnonymous && (
+                            <Dialog onOpenChange={(isOpen) => { if (!isOpen) { setSelectedCase(null); } }}>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  className="bg-rose-600 hover:bg-rose-700"
+                                  onClick={() => setSelectedCase(case_)}
+                                >
+                                  <MessageSquare className="h-4 w-4 mr-2" />
+                                  Contact
+                                </Button>
+                              </DialogTrigger>
+                              {selectedCase && selectedCase.id === case_.id && (
+                                <DialogContent className="max-w-md">
+                                  <DialogHeader>
+                                    <DialogTitle>Contact Case Owner</DialogTitle>
+                                    <DialogDescription>
+                                      <strong>Case:</strong> {selectedCase.name}
+                                      <br />
+                                      <strong>Name:</strong>{" "}
+                                      {`${selectedCase.reporterFirstName || ""} ${
+                                        selectedCase.reporterLastName || ""
+                                      }`.trim() || "Not provided"}
+                                      <br />
+                                      <strong>Phone:</strong>{" "}
+                                      {selectedCase.reporterPhone || "Not provided"}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                </DialogContent>
+                              )}
+                            </Dialog>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          )}
         </Card>
       ))}
     </div>
