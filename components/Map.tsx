@@ -33,12 +33,12 @@ function HeatmapLayer({ points, options = {} }) {
       maxZoom: options.maxZoom || 17,
       max: options.max || 1.0,
       gradient: options.gradient || {
-        0.4: 'blue',
-        0.6: 'cyan',
-        0.7: 'lime',
-        0.8: 'yellow',
-        1.0: 'red'
-      }
+        0.4: "blue",
+        0.6: "cyan",
+        0.7: "lime",
+        0.8: "yellow",
+        1.0: "red",
+      },
     });
 
     heat.addTo(map);
@@ -80,11 +80,11 @@ interface CaseEvent {
 // 2. Create FirestoreDataConverters for type safety
 const panicAlertConverter = {
   toFirestore(alert: PanicAlert): DocumentData {
-    return { 
-      location: alert.location, 
+    return {
+      location: alert.location,
       timestamp: alert.timestamp,
       userId: alert.userId,
-      audioUrl: alert.audioUrl 
+      audioUrl: alert.audioUrl,
     };
   },
   fromFirestore(snapshot: QueryDocumentSnapshot): PanicAlert {
@@ -143,8 +143,8 @@ const isValidGeoPoint = (geoPoint: GeoPoint | undefined | null): boolean => {
   return (
     geoPoint !== undefined &&
     geoPoint !== null &&
-    typeof geoPoint.latitude === 'number' &&
-    typeof geoPoint.longitude === 'number' &&
+    typeof geoPoint.latitude === "number" &&
+    typeof geoPoint.longitude === "number" &&
     !isNaN(geoPoint.latitude) &&
     !isNaN(geoPoint.longitude) &&
     geoPoint.latitude >= -90 &&
@@ -172,9 +172,10 @@ export default function PanicMap() {
         }
 
         // Fetch panic alerts
-        const panicAlertsCollection = collection(db, "panic_events").withConverter(
-          panicAlertConverter
-        );
+        const panicAlertsCollection = collection(
+          db,
+          "panic_events"
+        ).withConverter(panicAlertConverter);
         const panicQuerySnapshot = await getDocs(panicAlertsCollection);
         const fetchedPanicAlerts = panicQuerySnapshot.docs
           .map((doc) => doc.data())
@@ -187,9 +188,10 @@ export default function PanicMap() {
         const caseQuerySnapshot = await getDocs(caseEventsCollection);
         const fetchedCaseEvents = caseQuerySnapshot.docs
           .map((doc) => doc.data())
-          .filter((caseEvent) => 
-            isValidGeoPoint(caseEvent.incidentLocation) || 
-            isValidGeoPoint(caseEvent.currentLocation)
+          .filter(
+            (caseEvent) =>
+              isValidGeoPoint(caseEvent.incidentLocation) ||
+              isValidGeoPoint(caseEvent.currentLocation)
           ); // Filter out events without valid locations
 
         if (isMounted) {
@@ -217,23 +219,25 @@ export default function PanicMap() {
   }, []); // Empty dependency array means this runs once on mount
 
   // Convert data to separate heatmap points for different types
-  const panicHeatmapPoints = panicAlerts.map(alert => [
+  const panicHeatmapPoints = panicAlerts.map((alert) => [
     alert.location.latitude,
     alert.location.longitude,
-    2.0 // much higher intensity for panic alerts
+    2.0, // much higher intensity for panic alerts
   ]);
 
-  const caseHeatmapPoints = caseEvents.map(caseEvent => {
-    const location = isValidGeoPoint(caseEvent.incidentLocation) 
-      ? caseEvent.incidentLocation 
-      : caseEvent.currentLocation;
-    
-    return [
-      location!.latitude,
-      location!.longitude,
-      1.5 // higher intensity for regular cases
-    ];
-  }).filter(point => point[0] !== undefined && point[1] !== undefined);
+  const caseHeatmapPoints = caseEvents
+    .map((caseEvent) => {
+      const location = isValidGeoPoint(caseEvent.incidentLocation)
+        ? caseEvent.incidentLocation
+        : caseEvent.currentLocation;
+
+      return [
+        location!.latitude,
+        location!.longitude,
+        1.5, // higher intensity for regular cases
+      ];
+    })
+    .filter((point) => point[0] !== undefined && point[1] !== undefined);
 
   if (loading) {
     return (
@@ -268,7 +272,7 @@ export default function PanicMap() {
           </div>
         </div>
       </div>
-      
+
       <MapContainer
         center={[19.076, 72.8777]}
         zoom={13}
@@ -281,10 +285,10 @@ export default function PanicMap() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
+
         {/* Panic Alerts Heatmap - Red gradient */}
         {panicHeatmapPoints.length > 0 && (
-          <HeatmapLayer 
+          <HeatmapLayer
             points={panicHeatmapPoints}
             options={{
               radius: 60,
@@ -293,19 +297,19 @@ export default function PanicMap() {
               max: 0.5, // Lower max to make points more visible
               minOpacity: 0.3,
               gradient: {
-                0.1: '#FF6B6B', // Light Red
-                0.3: '#FF4444', // Medium Red
-                0.5: '#FF0000', // Pure Red
-                0.7: '#CC0000', // Dark Red
-                1.0: '#990000'  // Very Dark Red
-              }
+                0.1: "#FF6B6B", // Light Red
+                0.3: "#FF4444", // Medium Red
+                0.5: "#FF0000", // Pure Red
+                0.7: "#CC0000", // Dark Red
+                1.0: "#990000", // Very Dark Red
+              },
             }}
           />
         )}
-        
+
         {/* Case Events Heatmap - Orange gradient */}
         {caseHeatmapPoints.length > 0 && (
-          <HeatmapLayer 
+          <HeatmapLayer
             points={caseHeatmapPoints}
             options={{
               radius: 50,
@@ -314,12 +318,13 @@ export default function PanicMap() {
               max: 0.5, // Lower max to make points more visible
               minOpacity: 0.2,
               gradient: {
-                0.1: '#FFE4B5', // Moccasin (very light orange)
-                0.3: '#FFD700', // Gold
-                0.5: '#FFA500', // Orange
-                0.7: '#FF8C00', // Dark Orange
-                1.0: '#FF6600'  // Red Orange
-              }
+                0.0: "#FF7F00", // Orange Red
+                0.2: "#FF6600", // Red Orange
+                0.4: "#FF4500", // Orange Red
+                0.6: "#FF0000", // Red
+                0.8: "#DC143C", // Crimson
+                1.0: "#8B0000", // Dark Red
+              },
             }}
           />
         )}

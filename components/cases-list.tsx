@@ -52,6 +52,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { formatDescription } from "@/lib/descriptionFormatter";
+import { useRouter } from "next/navigation";
 
 type CaseStatus = "pending" | "investigating" | "resolved";
 type CasePriority = "low" | "medium" | "high" | "critical";
@@ -108,6 +109,7 @@ export function CasesList({
   searchQuery = "",
   statusFilter = "all",
 }: CasesListProps) {
+const router = useRouter();
   const { t } = useTranslation();
   const [cases, setCases] = useState<Case[]>([]);
   const [aggregatedCases, setAggregatedCases] = useState<AggregatedCase[]>([]);
@@ -121,7 +123,7 @@ export function CasesList({
   const formatGeoPoint = useCallback(
     async (geoPoint: GeoPoint | undefined): Promise<string> => {
       if (!geoPoint || !geoPoint.latitude || !geoPoint.longitude) {
-        return "Location not specified";
+        return "";
       }
 
       const cacheKey = `${geoPoint.latitude},${geoPoint.longitude}`;
@@ -166,7 +168,7 @@ export function CasesList({
 
   // Function to normalize harasser names
   const normalizeHarasserName = useCallback((name: string): string => {
-    return name.trim().toLowerCase().replace(/\s+/g, ' ');
+    return name.trim().toLowerCase().replace(/\s+/g, " ");
   }, []);
 
   // Batch fetch user data for better performance
@@ -209,122 +211,166 @@ export function CasesList({
   // Function to get priority weight for sorting
   const getPriorityWeight = useCallback((priority: CasePriority): number => {
     switch (priority.toLowerCase()) {
-      case "critical": return 4;
-      case "high": return 3;
-      case "medium": return 2;
-      case "low": return 1;
-      default: return 0;
+      case "critical":
+        return 4;
+      case "high":
+        return 3;
+      case "medium":
+        return 2;
+      case "low":
+        return 1;
+      default:
+        return 0;
     }
   }, []);
 
   // Function to determine risk level based on report count and other factors
-  const calculateRiskLevel = useCallback((
-    reportCount: number,
-    averagePanicScore: number,
-    highestPriority: CasePriority
-  ): "low" | "medium" | "high" | "critical" => {
-    const priorityWeight = getPriorityWeight(highestPriority);
-    
-    if (reportCount >= 10 || (reportCount >= 5 && averagePanicScore >= 75) || priorityWeight >= 4) {
-      return "critical";
-    } else if (reportCount >= 5 || (reportCount >= 3 && averagePanicScore >= 50) || priorityWeight >= 3) {
-      return "high";
-    } else if (reportCount >= 3 || averagePanicScore >= 40 || priorityWeight >= 2) {
-      return "medium";
-    } else {
-      return "low";
-    }
-  }, [getPriorityWeight]);
+  const calculateRiskLevel = useCallback(
+    (
+      reportCount: number,
+      averagePanicScore: number,
+      highestPriority: CasePriority
+    ): "low" | "medium" | "high" | "critical" => {
+      const priorityWeight = getPriorityWeight(highestPriority);
+
+      if (
+        reportCount >= 10 ||
+        (reportCount >= 5 && averagePanicScore >= 75) ||
+        priorityWeight >= 4
+      ) {
+        return "critical";
+      } else if (
+        reportCount >= 5 ||
+        (reportCount >= 3 && averagePanicScore >= 50) ||
+        priorityWeight >= 3
+      ) {
+        return "high";
+      } else if (
+        reportCount >= 3 ||
+        averagePanicScore >= 40 ||
+        priorityWeight >= 2
+      ) {
+        return "medium";
+      } else {
+        return "low";
+      }
+    },
+    [getPriorityWeight]
+  );
 
   // Function to aggregate cases by harasser name
-  const aggregateCases = useCallback((cases: Case[]): AggregatedCase[] => {
-    const grouped = new Map<string, Case[]>();
-    
-    // Group cases by normalized harasser name
-    cases.forEach(case_ => {
-      const harasserName = case_.harasserName;
-      if (harasserName && harasserName.trim()) {
-        const normalizedName = normalizeHarasserName(harasserName);
-        if (!grouped.has(normalizedName)) {
-          grouped.set(normalizedName, []);
+  const aggregateCases = useCallback(
+    (cases: Case[]): AggregatedCase[] => {
+      const grouped = new Map<string, Case[]>();
+
+      // Group cases by normalized harasser name
+      cases.forEach((case_) => {
+        const harasserName = case_.harasserName;
+        if (harasserName && harasserName.trim()) {
+          const normalizedName = normalizeHarasserName(harasserName);
+          if (!grouped.has(normalizedName)) {
+            grouped.set(normalizedName, []);
+          }
+          grouped.get(normalizedName)!.push(case_);
         }
-        grouped.get(normalizedName)!.push(case_);
-      }
-    });
+      });
 
-    // Create aggregated cases
-    const aggregated: AggregatedCase[] = Array.from(grouped.entries()).map(([normalizedName, casesGroup]) => {
-      const totalReports = casesGroup.length;
-      const harasserName = casesGroup[0].harasserName || "Unknown";
-      
-      // Calculate highest priority
-      const highestPriority = casesGroup.reduce((highest, case_) => {
-        return getPriorityWeight(case_.priority) > getPriorityWeight(highest) ? case_.priority : highest;
-      }, "low" as CasePriority);
+      // Create aggregated cases
+      const aggregated: AggregatedCase[] = Array.from(grouped.entries()).map(
+        ([normalizedName, casesGroup]) => {
+          const totalReports = casesGroup.length;
+          const harasserName = casesGroup[0].harasserName || "Unknown";
 
-      // Calculate latest incident date
-      const latestIncidentDate = casesGroup.reduce((latest, case_) => {
-        return case_.incidentDate > latest ? case_.incidentDate : latest;
-      }, new Date(0));
+          // Calculate highest priority
+          const highestPriority = casesGroup.reduce((highest, case_) => {
+            return getPriorityWeight(case_.priority) >
+              getPriorityWeight(highest)
+              ? case_.priority
+              : highest;
+          }, "low" as CasePriority);
 
-      // Calculate panic scores
-      const validPanicScores = casesGroup.filter(c => c.panicScore !== undefined).map(c => c.panicScore!);
-      const totalPanicScore = validPanicScores.reduce((sum, score) => sum + score, 0);
-      const averagePanicScore = validPanicScores.length > 0 ? totalPanicScore / validPanicScores.length : 0;
+          // Calculate latest incident date
+          const latestIncidentDate = casesGroup.reduce((latest, case_) => {
+            return case_.incidentDate > latest ? case_.incidentDate : latest;
+          }, new Date(0));
 
-      // Get unique locations
-      const locations = Array.from(new Set(casesGroup.map(c => c.location)));
+          // Calculate panic scores
+          const validPanicScores = casesGroup
+            .filter((c) => c.panicScore !== undefined)
+            .map((c) => c.panicScore!);
+          const totalPanicScore = validPanicScores.reduce(
+            (sum, score) => sum + score,
+            0
+          );
+          const averagePanicScore =
+            validPanicScores.length > 0
+              ? totalPanicScore / validPanicScores.length
+              : 0;
 
-      // Calculate status counts
-      const statusCounts = casesGroup.reduce((counts, case_) => {
-        counts[case_.status] = (counts[case_.status] || 0) + 1;
-        return counts;
-      }, {} as Record<CaseStatus, number>);
+          // Get unique locations
+          const locations = Array.from(
+            new Set(casesGroup.map((c) => c.location))
+          );
 
-      // Calculate total attachments
-      const totalAttachments = casesGroup.reduce((total, case_) => {
-        const imageCount = case_.attachmentImage?.length || 0;
-        const videoCount = case_.attachmentVideo?.length || 0;
-        const audioCount = case_.attachmentAudio?.length || 0;
-        return total + imageCount + videoCount + audioCount;
-      }, 0);
+          // Calculate status counts
+          const statusCounts = casesGroup.reduce((counts, case_) => {
+            counts[case_.status] = (counts[case_.status] || 0) + 1;
+            return counts;
+          }, {} as Record<CaseStatus, number>);
 
-      // Determine risk level
-      const riskLevel = calculateRiskLevel(totalReports, averagePanicScore, highestPriority);
-      const isHighRisk = riskLevel === "critical" || riskLevel === "high";
+          // Calculate total attachments
+          const totalAttachments = casesGroup.reduce((total, case_) => {
+            const imageCount = case_.attachmentImage?.length || 0;
+            const videoCount = case_.attachmentVideo?.length || 0;
+            const audioCount = case_.attachmentAudio?.length || 0;
+            return total + imageCount + videoCount + audioCount;
+          }, 0);
 
-      return {
-        harasserName,
-        normalizedName,
-        cases: casesGroup.sort((a, b) => b.incidentDate.getTime() - a.incidentDate.getTime()),
-        totalReports,
-        highestPriority,
-        latestIncidentDate,
-        totalPanicScore,
-        averagePanicScore,
-        locations,
-        isHighRisk,
-        riskLevel,
-        statusCounts,
-        totalAttachments,
-      };
-    });
+          // Determine risk level
+          const riskLevel = calculateRiskLevel(
+            totalReports,
+            averagePanicScore,
+            highestPriority
+          );
+          const isHighRisk = riskLevel === "critical" || riskLevel === "high";
 
-    // Sort by importance (risk level, then by report count, then by latest incident)
-    return aggregated.sort((a, b) => {
-      // First sort by risk level (critical > high > medium > low)
-      const riskWeights = { critical: 4, high: 3, medium: 2, low: 1 };
-      const riskDiff = riskWeights[b.riskLevel] - riskWeights[a.riskLevel];
-      if (riskDiff !== 0) return riskDiff;
+          return {
+            harasserName,
+            normalizedName,
+            cases: casesGroup.sort(
+              (a, b) => b.incidentDate.getTime() - a.incidentDate.getTime()
+            ),
+            totalReports,
+            highestPriority,
+            latestIncidentDate,
+            totalPanicScore,
+            averagePanicScore,
+            locations,
+            isHighRisk,
+            riskLevel,
+            statusCounts,
+            totalAttachments,
+          };
+        }
+      );
 
-      // Then by total reports (descending)
-      const reportDiff = b.totalReports - a.totalReports;
-      if (reportDiff !== 0) return reportDiff;
+      // Sort by importance (risk level, then by report count, then by latest incident)
+      return aggregated.sort((a, b) => {
+        // First sort by risk level (critical > high > medium > low)
+        const riskWeights = { critical: 4, high: 3, medium: 2, low: 1 };
+        const riskDiff = riskWeights[b.riskLevel] - riskWeights[a.riskLevel];
+        if (riskDiff !== 0) return riskDiff;
 
-      // Finally by latest incident date (most recent first)
-      return b.latestIncidentDate.getTime() - a.latestIncidentDate.getTime();
-    });
-  }, [normalizeHarasserName, getPriorityWeight, calculateRiskLevel]);
+        // Then by total reports (descending)
+        const reportDiff = b.totalReports - a.totalReports;
+        if (reportDiff !== 0) return reportDiff;
+
+        // Finally by latest incident date (most recent first)
+        return b.latestIncidentDate.getTime() - a.latestIncidentDate.getTime();
+      });
+    },
+    [normalizeHarasserName, getPriorityWeight, calculateRiskLevel]
+  );
 
   const fetchCases = useCallback(async () => {
     setError(null);
@@ -460,7 +506,9 @@ export function CasesList({
     }
   };
 
-  const getRiskLevelColor = (riskLevel: "low" | "medium" | "high" | "critical") => {
+  const getRiskLevelColor = (
+    riskLevel: "low" | "medium" | "high" | "critical"
+  ) => {
     switch (riskLevel) {
       case "critical":
         return "bg-red-600 text-white border-red-700";
@@ -474,7 +522,9 @@ export function CasesList({
     }
   };
 
-  const getGroupCardStyling = (riskLevel: "low" | "medium" | "high" | "critical") => {
+  const getGroupCardStyling = (
+    riskLevel: "low" | "medium" | "high" | "critical"
+  ) => {
     switch (riskLevel) {
       case "critical":
         return "border-red-500 bg-red-50/50 dark:bg-red-950/30 shadow-red-100 dark:shadow-red-900/20";
@@ -497,17 +547,23 @@ export function CasesList({
 
   const filteredAggregatedCases = useMemo(() => {
     return aggregatedCases.filter((aggregated) => {
-      const matchesSearch = 
-        aggregated.harasserName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        aggregated.cases.some(case_ => 
-          case_.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          case_.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          case_.location.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesSearch =
+        aggregated.harasserName
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        aggregated.cases.some(
+          (case_) =>
+            case_.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            case_.description
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()) ||
+            case_.location.toLowerCase().includes(searchQuery.toLowerCase())
         );
-      
-      const matchesStatus = statusFilter === "all" || 
-        aggregated.cases.some(case_ => case_.status === statusFilter);
-        
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        aggregated.cases.some((case_) => case_.status === statusFilter);
+
       return matchesSearch && matchesStatus;
     });
   }, [aggregatedCases, searchQuery, statusFilter]);
@@ -561,14 +617,17 @@ export function CasesList({
           <RefreshCw
             className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
           />
-          Refresh ({filteredAggregatedCases.length} suspects, {cases.filter(c => c.harasserName).length} total cases)
+          Refresh ({filteredAggregatedCases.length} suspects,{" "}
+          {cases.filter((c) => c.harasserName).length} total cases)
         </Button>
       </div>
 
       {filteredAggregatedCases.map((aggregated) => (
         <Card
           key={aggregated.normalizedName}
-          className={`${getGroupCardStyling(aggregated.riskLevel)} hover:shadow-lg transition-all`}
+          className={`${getGroupCardStyling(
+            aggregated.riskLevel
+          )} hover:shadow-lg transition-all`}
         >
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -577,7 +636,9 @@ export function CasesList({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => toggleGroupExpansion(aggregated.normalizedName)}
+                    onClick={() =>
+                      toggleGroupExpansion(aggregated.normalizedName)
+                    }
                     className="p-1 h-8 w-8"
                   >
                     {expandedGroups.has(aggregated.normalizedName) ? (
@@ -601,15 +662,23 @@ export function CasesList({
                     <Users className="h-3 w-3 mr-1" />
                     {aggregated.totalReports} Reports
                   </Badge>
-                  <Badge className={getPriorityColor(aggregated.highestPriority)}>
+                  <Badge
+                    className={getPriorityColor(aggregated.highestPriority)}
+                  >
                     Highest Priority: {aggregated.highestPriority.toUpperCase()}
                   </Badge>
                   {aggregated.averagePanicScore > 0 && (
-                    <Badge variant="outline" className="border-purple-200 text-purple-700">
+                    <Badge
+                      variant="outline"
+                      className="border-purple-200 text-purple-700"
+                    >
                       Avg Panic: {aggregated.averagePanicScore.toFixed(1)}
                     </Badge>
                   )}
-                  <Badge variant="outline" className="border-blue-200 text-blue-700">
+                  <Badge
+                    variant="outline"
+                    className="border-blue-200 text-blue-700"
+                  >
                     <Eye className="h-3 w-3 mr-1" />
                     {aggregated.totalAttachments} Evidence Files
                   </Badge>
@@ -617,24 +686,37 @@ export function CasesList({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Status Distribution:</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      Status Distribution:
+                    </span>
                     <div className="flex gap-1 mt-1">
-                      {Object.entries(aggregated.statusCounts).map(([status, count]) => (
-                        <Badge key={status} className={getStatusColor(status as CaseStatus)} variant="secondary">
-                          {status}: {count}
-                        </Badge>
-                      ))}
+                      {Object.entries(aggregated.statusCounts).map(
+                        ([status, count]) => (
+                          <Badge
+                            key={status}
+                            className={getStatusColor(status as CaseStatus)}
+                            variant="secondary"
+                          >
+                            {status}: {count}
+                          </Badge>
+                        )
+                      )}
                     </div>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Locations ({aggregated.locations.length}):</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      Locations ({aggregated.locations.length}):
+                    </span>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
                       {aggregated.locations.slice(0, 2).join(", ")}
-                      {aggregated.locations.length > 2 && ` +${aggregated.locations.length - 2} more`}
+                      {aggregated.locations.length > 2 &&
+                        ` +${aggregated.locations.length - 2} more`}
                     </p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Latest Incident:</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      Latest Incident:
+                    </span>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
                       {aggregated.latestIncidentDate.toLocaleDateString()}
                     </p>
@@ -645,7 +727,9 @@ export function CasesList({
                   <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-950/50 rounded-md border border-red-300 dark:border-red-700">
                     <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
                     <span className="text-sm font-medium text-red-800 dark:text-red-200">
-                      CRITICAL THREAT: This suspect has {aggregated.totalReports} reports with high risk indicators. Immediate attention required.
+                      CRITICAL THREAT: This suspect has{" "}
+                      {aggregated.totalReports} reports with high risk
+                      indicators. Immediate attention required.
                     </span>
                   </div>
                 )}
@@ -661,7 +745,10 @@ export function CasesList({
                   Individual Cases ({aggregated.cases.length}):
                 </h4>
                 {aggregated.cases.map((case_) => (
-                  <Card key={case_.id} className="border-l-4 border-l-rose-500 bg-white dark:bg-gray-950">
+                  <Card
+                    key={case_.id}
+                    className="border-l-4 border-l-rose-500 bg-white dark:bg-gray-950"
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-4">
                         <div className="space-y-2 flex-1">
@@ -676,7 +763,10 @@ export function CasesList({
                               {case_.status.toUpperCase()}
                             </Badge>
                             {case_.panicScore !== undefined && (
-                              <Badge variant="outline" className="border-purple-200 text-purple-700">
+                              <Badge
+                                variant="outline"
+                                className="border-purple-200 text-purple-700"
+                              >
                                 Panic: {case_.panicScore.toFixed(2)}
                               </Badge>
                             )}
@@ -688,7 +778,9 @@ export function CasesList({
                         <div className="text-sm text-muted-foreground text-right flex-shrink-0">
                           <div className="flex items-center gap-1.5">
                             <Calendar className="h-4 w-4" />
-                            <span>{case_.incidentDate.toLocaleDateString()}</span>
+                            <span>
+                              {case_.incidentDate.toLocaleDateString()}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -698,7 +790,9 @@ export function CasesList({
                         <div className="flex gap-4 text-sm text-muted-foreground items-center flex-wrap">
                           <div className="flex items-center gap-1.5">
                             <FileText className="h-4 w-4" />
-                            <span>Submitted: {case_.createdAt.toLocaleDateString()}</span>
+                            <span>
+                              Submitted: {case_.createdAt.toLocaleDateString()}
+                            </span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-4 w-4" />
@@ -710,7 +804,11 @@ export function CasesList({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Dialog onOpenChange={(isOpen) => !isOpen && setSelectedCase(null)}>
+                          <Dialog
+                            onOpenChange={(isOpen) =>
+                              !isOpen && setSelectedCase(null)
+                            }
+                          >
                             <DialogTrigger asChild>
                               <Button
                                 variant="outline"
@@ -722,16 +820,31 @@ export function CasesList({
                                 View Evidence
                               </Button>
                             </DialogTrigger>
+                            {/* Add this after the Contact User button */}
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => {
+                                // Add escalation logic here
+                                router.push("https://mumbaipolice.gov.in/CAWU");
+                              }}
+                            >
+                              <Shield className="h-4 w-4 mr-2" />
+                              Escalate to Police
+                            </Button>
                             {selectedCase && selectedCase.id === case_.id && (
                               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                                 <DialogHeader>
                                   <DialogTitle>Evidence Files</DialogTitle>
                                   <DialogDescription>
-                                    View case attachments for "{selectedCase.name}"
+                                    View case attachments for "
+                                    {selectedCase.name}"
                                     {selectedCase.harasserName && (
                                       <>
                                         <br />
-                                        <span className="font-medium">Suspect: </span>
+                                        <span className="font-medium">
+                                          Suspect:{" "}
+                                        </span>
                                         <span className="text-red-600 font-semibold">
                                           {selectedCase.harasserName}
                                         </span>
@@ -747,7 +860,12 @@ export function CasesList({
                                         <div className="flex items-center gap-2">
                                           <ImageIcon className="h-5 w-5" />
                                           <h3 className="text-md font-medium">
-                                            Image Evidence ({selectedCase.attachmentImage.length})
+                                            Image Evidence (
+                                            {
+                                              selectedCase.attachmentImage
+                                                .length
+                                            }
+                                            )
                                           </h3>
                                         </div>
                                         {selectedCase.attachmentImage.map(
@@ -759,7 +877,9 @@ export function CasesList({
                                               <div className="relative w-full aspect-video">
                                                 <img
                                                   src={imageUrl}
-                                                  alt={`Image Evidence ${index + 1}`}
+                                                  alt={`Image Evidence ${
+                                                    index + 1
+                                                  }`}
                                                   className="w-full h-full object-contain rounded-lg"
                                                   loading="lazy"
                                                 />
@@ -777,7 +897,12 @@ export function CasesList({
                                         <div className="flex items-center gap-2">
                                           <Video className="h-5 w-5" />
                                           <h3 className="text-md font-medium">
-                                            Video Evidence ({selectedCase.attachmentVideo.length})
+                                            Video Evidence (
+                                            {
+                                              selectedCase.attachmentVideo
+                                                .length
+                                            }
+                                            )
                                           </h3>
                                         </div>
                                         {selectedCase.attachmentVideo.map(
@@ -792,7 +917,8 @@ export function CasesList({
                                                 className="w-full aspect-video rounded-lg"
                                                 preload="metadata"
                                               >
-                                                Your browser does not support the video tag.
+                                                Your browser does not support
+                                                the video tag.
                                               </video>
                                             </div>
                                           )
@@ -807,7 +933,12 @@ export function CasesList({
                                         <div className="flex items-center gap-2">
                                           <Volume2 className="h-5 w-5" />
                                           <h3 className="text-md font-medium">
-                                            Audio Evidence ({selectedCase.attachmentAudio.length})
+                                            Audio Evidence (
+                                            {
+                                              selectedCase.attachmentAudio
+                                                .length
+                                            }
+                                            )
                                           </h3>
                                         </div>
                                         {selectedCase.attachmentAudio.map(
@@ -822,7 +953,8 @@ export function CasesList({
                                                 className="w-full"
                                                 preload="metadata"
                                               >
-                                                Your browser does not support the audio tag.
+                                                Your browser does not support
+                                                the audio tag.
                                               </audio>
                                             </div>
                                           )
@@ -832,11 +964,14 @@ export function CasesList({
 
                                   {/* No attachments */}
                                   {(!selectedCase.attachmentImage ||
-                                    selectedCase.attachmentImage.length === 0) &&
+                                    selectedCase.attachmentImage.length ===
+                                      0) &&
                                     (!selectedCase.attachmentVideo ||
-                                      selectedCase.attachmentVideo.length === 0) &&
+                                      selectedCase.attachmentVideo.length ===
+                                        0) &&
                                     (!selectedCase.attachmentAudio ||
-                                      selectedCase.attachmentAudio.length === 0) && (
+                                      selectedCase.attachmentAudio.length ===
+                                        0) && (
                                       <p className="text-sm text-muted-foreground text-center py-8">
                                         No evidence provided
                                       </p>
@@ -847,7 +982,13 @@ export function CasesList({
                           </Dialog>
 
                           {!case_.isAnonymous && (
-                            <Dialog onOpenChange={(isOpen) => { if (!isOpen) { setSelectedCase(null); } }}>
+                            <Dialog
+                              onOpenChange={(isOpen) => {
+                                if (!isOpen) {
+                                  setSelectedCase(null);
+                                }
+                              }}
+                            >
                               <DialogTrigger asChild>
                                 <Button
                                   size="sm"
@@ -861,17 +1002,22 @@ export function CasesList({
                               {selectedCase && selectedCase.id === case_.id && (
                                 <DialogContent className="max-w-md">
                                   <DialogHeader>
-                                    <DialogTitle>Contact Case Owner</DialogTitle>
+                                    <DialogTitle>
+                                      Contact Case Owner
+                                    </DialogTitle>
                                     <DialogDescription>
                                       <strong>Case:</strong> {selectedCase.name}
                                       <br />
                                       <strong>Name:</strong>{" "}
-                                      {`${selectedCase.reporterFirstName || ""} ${
+                                      {`${
+                                        selectedCase.reporterFirstName || ""
+                                      } ${
                                         selectedCase.reporterLastName || ""
                                       }`.trim() || "Not provided"}
                                       <br />
                                       <strong>Phone:</strong>{" "}
-                                      {selectedCase.reporterPhone || "Not provided"}
+                                      {selectedCase.reporterPhone ||
+                                        "Not provided"}
                                     </DialogDescription>
                                   </DialogHeader>
                                 </DialogContent>

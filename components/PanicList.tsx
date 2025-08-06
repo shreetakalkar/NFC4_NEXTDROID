@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "@/hooks/use-translation";
 import {
   collection,
@@ -39,7 +39,11 @@ import {
   Volume2,
   Phone,
   Clock,
+  RefreshCw,
+  Shield,
 } from "lucide-react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 type AlertStatus = "active" | "responding" | "resolved";
 
@@ -68,6 +72,9 @@ export default function PanicList({
   const [selectedAlert, setSelectedAlert] = useState<PanicAlert | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const router = useRouter()
 
   useEffect(() => {
     const fetchPanicAlerts = async () => {
@@ -92,9 +99,10 @@ export default function PanicList({
                 if (userSnapshot.exists()) {
                   const userData = userSnapshot.data();
                   userInfo = {
-                    userName: `${userData.firstName || ""} ${
-                      userData.lastName || ""
-                    }`.trim() || "Unknown User",
+                    userName:
+                      `${userData.firstName || ""} ${
+                        userData.lastName || ""
+                      }`.trim() || "Unknown User",
                     userPhone: userData.phoneNumber || "Not provided",
                   };
                 }
@@ -106,15 +114,6 @@ export default function PanicList({
                 };
               }
             }
-
-            const formatGeoPoint = (geoPoint: GeoPoint | undefined) => {
-              if (geoPoint && geoPoint.latitude && geoPoint.longitude) {
-                return `${geoPoint.latitude.toFixed(
-                  4
-                )}° N, ${geoPoint.longitude.toFixed(4)}° E`;
-              }
-              return "Location not specified";
-            };
 
             const getAlertStatus = (): AlertStatus => {
               const now = new Date();
@@ -190,6 +189,43 @@ export default function PanicList({
     return matchesSearch && matchesStatus;
   });
 
+  const formatGeoPoint = useCallback(
+    async (geoPoint: GeoPoint | undefined): Promise<string> => {
+      if (!geoPoint || !geoPoint.latitude || !geoPoint.longitude) {
+        return "";
+      }
+
+      const cacheKey = `${geoPoint.latitude},${geoPoint.longitude}`;
+
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+        if (!apiKey) {
+          console.warn("Weather API key not found");
+          return `${geoPoint.latitude.toFixed(4)}, ${geoPoint.longitude.toFixed(
+            4
+          )}`;
+        }
+
+        const response = await axios.get(
+          `https://api.openweathermap.org/geo/1.0/reverse?lat=${geoPoint.latitude}&lon=${geoPoint.longitude}&limit=1&appid=${apiKey}`,
+          { timeout: 5000 } // 5 second timeout
+        );
+
+        const location =
+          response.data?.[0]?.name ||
+          `${geoPoint.latitude.toFixed(4)}, ${geoPoint.longitude.toFixed(4)}`;
+        return location;
+      } catch (error) {
+        console.error("Error fetching location:", error);
+        const fallbackLocation = `${geoPoint.latitude.toFixed(
+          4
+        )}, ${geoPoint.longitude.toFixed(4)}`;
+        return fallbackLocation;
+      }
+    },
+    []
+  );
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-10 text-muted-foreground">
@@ -216,8 +252,36 @@ export default function PanicList({
     );
   }
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    // Fix: should call the panic alerts fetch function, not fetchCases
+    try {
+      const alertsCollectionRef = collection(db, "panic_events");
+      const q = query(alertsCollectionRef, orderBy("timestamp", "desc"));
+      const querySnapshot = await getDocs(q);
+      // ... rest of fetch logic
+    } catch (err) {
+      setError("Error refreshing alerts");
+    }
+    setIsRefreshing(false);
+  };
+
   return (
     <div className="space-y-4 p-4">
+      {/* Add this right before filteredAlerts.map */}
+      <div className="flex justify-end mb-4">
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          disabled={isRefreshing}
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+          />
+          Refresh ({filteredAlerts.length})
+        </Button>
+      </div>
       {filteredAlerts.map((alert) => (
         <Card
           key={alert.id}
@@ -257,9 +321,7 @@ export default function PanicList({
               <div className="flex gap-4 text-sm text-muted-foreground items-center flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
-                  <span>
-                    Triggered: {alert.timestamp.toLocaleString()}
-                  </span>
+                  <span>Triggered: {alert.timestamp.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <MapPin className="h-4 w-4" />
@@ -327,7 +389,19 @@ export default function PanicList({
                       <Phone className="h-4 w-4 mr-2" />
                       Contact User
                     </Button>
+                    {/* Add this after the Contact User button */}
                   </DialogTrigger>
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      // Add escalation logic here
+                      router.push(`https://mumbaipolice.gov.in/CAWU`);
+                    }}
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Escalate to Police
+                  </Button>
                   {selectedAlert && selectedAlert.id === alert.id && (
                     <DialogContent className="max-w-md">
                       <DialogHeader>
