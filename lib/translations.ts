@@ -56,6 +56,7 @@ interface Translations {
       resolved: string;
     };
     anonymous: string;
+    // notAnonymous : string;
     evidence_items: string;
     view_details: string;
     contact: string;
