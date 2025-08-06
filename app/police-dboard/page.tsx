@@ -35,6 +35,10 @@ import {
   TrendingUp,
   Activity,
   BarChart3,
+  Building2,
+  AlertCircle,
+  Target,
+  BriefcaseIcon,
 } from "lucide-react";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { CasesList } from "@/components/cases-list";
@@ -53,6 +57,30 @@ export default function AdminDashboard() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [urgentCases, setUrgentCases] = useState<any[]>([]);
   const { t, language } = useTranslation();
+
+  // Hardcoded department insights data
+  const departmentInsights = [
+    { department: "Human Resources", incidents: 45, trend: "up", percentage: 12, type: "Harassment" },
+    { department: "IT Department", incidents: 38, trend: "down", percentage: 8, type: "Data Security" },
+    { department: "Finance", incidents: 29, trend: "up", percentage: 15, type: "Fraud" },
+    { department: "Sales", incidents: 34, trend: "stable", percentage: 2, type: "Misconduct" },
+    { department: "Operations", incidents: 41, trend: "up", percentage: 18, type: "Safety Violations" },
+    { department: "Marketing", incidents: 22, trend: "down", percentage: 10, type: "Discrimination" },
+    { department: "Legal", incidents: 18, trend: "stable", percentage: 1, type: "Ethics" },
+    { department: "Customer Service", incidents: 27, trend: "up", percentage: 9, type: "Harassment" },
+  ];
+
+  // Hardcoded office area trends data
+  const officeAreaTrends = [
+    { area: "Open Workspace Floor 3", incidents: 28, riskLevel: "High", primaryIssue: "Harassment" },
+    { area: "Private Offices Floor 2", incidents: 19, riskLevel: "Medium", primaryIssue: "Misconduct" },
+    { area: "Conference Rooms", incidents: 15, riskLevel: "Medium", primaryIssue: "Discrimination" },
+    { area: "Cafeteria & Break Areas", incidents: 12, riskLevel: "Low", primaryIssue: "Verbal Abuse" },
+    { area: "Parking Garage", incidents: 23, riskLevel: "High", primaryIssue: "Safety Issues" },
+    { area: "Reception Area", incidents: 8, riskLevel: "Low", primaryIssue: "Visitor Issues" },
+    { area: "Server Room", incidents: 6, riskLevel: "Medium", primaryIssue: "Unauthorized Access" },
+    { area: "Executive Floor", incidents: 11, riskLevel: "Medium", primaryIssue: "Power Abuse" },
+  ];
 
   useEffect(() => {
     const initializeData = async () => {
@@ -324,10 +352,10 @@ export default function AdminDashboard() {
                       <span className="text-sm text-muted-foreground">Burglary</span>
                       <span className="font-semibold text-green-600">↓ 5%</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    {/* <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Drug Offenses</span>
                       <span className="font-semibold text-red-600">↑ 15%</span>
-                    </div>
+                    </div> */}
                   </div>
                 </CardContent>
               </Card>
@@ -343,11 +371,11 @@ export default function AdminDashboard() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="text-center p-3 border rounded-lg border-pink-100 dark:border-pink-900/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/10 dark:to-emerald-950/10">
-                      <div className="text-2xl font-bold text-green-600">4.2 min</div>
+                      <div className="text-2xl font-bold text-green-600">10 min</div>
                       <div className="text-sm text-muted-foreground">Emergency Response</div>
                     </div>
                     <div className="text-center p-3 border rounded-lg border-pink-100 dark:border-pink-900/20 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/10 dark:to-cyan-950/10">
-                      <div className="text-2xl font-bold text-blue-600">12.8 min</div>
+                      <div className="text-2xl font-bold text-blue-600">15 min</div>
                       <div className="text-sm text-muted-foreground">Non-Emergency</div>
                     </div>
                   </div>
@@ -364,10 +392,10 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center">
+                    {/* <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Homicide</span>
                       <span className="font-semibold text-green-600">87%</span>
-                    </div>
+                    </div> */}
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Robbery</span>
                       <span className="font-semibold text-yellow-600">65%</span>
@@ -384,6 +412,209 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Department-Wise Insights */}
+            <Card className="border-pink-100 dark:border-pink-900/20 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                  <span>Department-Wise Insights</span>
+                </CardTitle>
+                <CardDescription>
+                  Incident reporting patterns across different departments to identify focus areas for awareness and prevention
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  {departmentInsights.map((dept, index) => (
+                    <div
+                      key={index}
+                      className="p-4 border rounded-lg border-pink-100 dark:border-pink-900/20 bg-white/50 dark:bg-gray-800/50 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold text-sm">{dept.department}</h4>
+                        <Badge
+                          variant={dept.trend === "up" ? "destructive" : dept.trend === "down" ? "default" : "secondary"}
+                          className={
+                            dept.trend === "up"
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300"
+                              : dept.trend === "down"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300"
+                          }
+                        >
+                          {dept.trend === "up" ? `↑ ${dept.percentage}%` : dept.trend === "down" ? `↓ ${dept.percentage}%` : "stable"}
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold text-pink-600">{dept.incidents}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Total Incidents
+                      </div>
+                      <div className="text-xs text-muted-foreground bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/10 dark:to-rose-950/10 p-2 rounded">
+                        Primary: {dept.type}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Top Departments Requiring Attention */}
+                <div className="mt-6 p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/10 dark:to-amber-950/10 border border-orange-200 dark:border-orange-900/20 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <AlertCircle className="h-5 w-5 text-orange-600" />
+                    <h4 className="font-semibold text-orange-800 dark:text-orange-200">Departments Requiring Immediate Attention</h4>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <div className="text-center p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                      <div className="font-semibold text-red-600">Operations</div>
+                      <div className="text-sm text-muted-foreground">↑ 18% Safety Violations</div>
+                    </div>
+                    <div className="text-center p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                      <div className="font-semibold text-red-600">Finance</div>
+                      <div className="text-sm text-muted-foreground">↑ 15% Fraud Cases</div>
+                    </div>
+                    <div className="text-center p-2 bg-white/50 dark:bg-gray-800/50 rounded">
+                      <div className="font-semibold text-red-600">Human Resources</div>
+                      <div className="text-sm text-muted-foreground">↑ 12% Harassment</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Office Area Trends */}
+            <Card className="border-pink-100 dark:border-pink-900/20 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Target className="h-5 w-5 text-purple-600" />
+                  <span>Office Area Trends</span>
+                </CardTitle>
+                <CardDescription>
+                  Identify potential hotspots within office spaces where incidents are more frequent
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-sm flex items-center space-x-2">
+                      <BriefcaseIcon className="h-4 w-4" />
+                      <span>High-Risk Areas</span>
+                    </h4>
+                    {officeAreaTrends
+                      .filter(area => area.riskLevel === "High")
+                      .map((area, index) => (
+                        <div
+                          key={index}
+                          className="p-4 border rounded-lg border-red-200 dark:border-red-900/20 bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950/10 dark:to-pink-950/10"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="font-semibold text-red-800 dark:text-red-200">{area.area}</h5>
+                            <Badge variant="destructive" className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                              {area.riskLevel} Risk
+                            </Badge>
+                          </div>
+                          <div className="text-2xl font-bold text-red-600 mb-1">{area.incidents}</div>
+                          <div className="text-sm text-muted-foreground mb-2">Incidents This Month</div>
+                          <div className="text-xs bg-white/50 dark:bg-gray-800/50 p-2 rounded">
+                            Primary Issue: {area.primaryIssue}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-sm">Medium & Low Risk Areas</h4>
+                    {officeAreaTrends
+                      .filter(area => area.riskLevel !== "High")
+                      .map((area, index) => (
+                        <div
+                          key={index}
+                          className={`p-3 border rounded-lg ${
+                            area.riskLevel === "Medium"
+                              ? "border-yellow-200 dark:border-yellow-900/20 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/10 dark:to-orange-950/10"
+                              : "border-green-200 dark:border-green-900/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/10 dark:to-emerald-950/10"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className={`font-medium ${
+                              area.riskLevel === "Medium" ? "text-yellow-800 dark:text-yellow-200" : "text-green-800 dark:text-green-200"
+                            }`}>
+                              {area.area}
+                            </h5>
+                            <Badge 
+                              variant={area.riskLevel === "Medium" ? "secondary" : "default"}
+                              className={
+                                area.riskLevel === "Medium"
+                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
+                                  : "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300"
+                              }
+                            >
+                              {area.riskLevel} Risk
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className={`text-lg font-bold ${
+                                area.riskLevel === "Medium" ? "text-yellow-600" : "text-green-600"
+                              }`}>
+                                {area.incidents}
+                              </div>
+                              <div className="text-xs text-muted-foreground">incidents</div>
+                            </div>
+                            <div className="text-xs text-right">
+                              <div className="font-medium">Primary:</div>
+                              <div className="text-muted-foreground">{area.primaryIssue}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Prevention Recommendations */}
+                <div className="mt-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/10 dark:to-indigo-950/10 border border-blue-200 dark:border-blue-900/20 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Shield className="h-5 w-5 text-blue-600" />
+                    <h4 className="font-semibold text-blue-800 dark:text-blue-200">Prevention & Action Recommendations</h4>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <h5 className="font-medium text-sm">Immediate Actions</h5>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex items-start space-x-2">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <span>Install additional security cameras in Open Workspace Floor 3</span>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <span>Increase security patrols in Parking Garage during peak hours</span>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <div className="w-1.5 h-1.5 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <span>Conduct emergency safety training for Operations department</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h5 className="font-medium text-sm">Long-term Strategies</h5>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex items-start space-x-2">
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <span>Implement mandatory harassment prevention workshops</span>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <span>Establish anonymous reporting hotline for each department</span>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <span>Create safe space initiatives in high-traffic areas</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Main Analytics Card */}
             <Card className="border-pink-100 dark:border-pink-900/20 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
