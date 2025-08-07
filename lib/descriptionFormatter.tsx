@@ -4,17 +4,17 @@ export const formatSectionContent = (content: string): React.ReactNode | null =>
   if (!content?.trim()) return null;
 
   // Handle nested ** formatting within sections
-  const parts = content.split(/(\*\*.*?\*\*)/g);
+  const parts = content.split(/(\\.?\\*)/g);
   const elements: React.ReactNode[] = [];
 
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     if (!part) continue;
 
-    if (part.match(/^\*\*(.*?)\*\*$/)) {
+    if (part.match(/^\\(.?)\\*$/)) {
       // Bold subsection
       const boldText = part
-        .replace(/^\*\*(.*?)\*\*$/, "$1")
+        .replace(/^\\(.?)\\*$/, "$1")
         .replace(/[:]*$/, "")
         .trim();
       if (boldText) {
@@ -95,16 +95,16 @@ export const formatDescription = (description: string): React.ReactNode => {
   } else {
     // Handle standard formats with ** or ### headers
     // Split by both ** and ### patterns
-    const parts = description.split(/(\*\*.*?\*\*|###\s*.*?)(?=\n|$)/g);
+    const parts = description.split(/(\\.?\\|###\s.*?)(?=\n|$)/g);
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i]?.trim();
       if (!part) continue;
 
-      if (part.match(/^\*\*(.*?)\*\*$/) || part.match(/^###\s*(.*?)$/)) {
+      if (part.match(/^\\(.?)\\$/) || part.match(/^###\s(.*?)$/)) {
         // Header section
         const headerText = part
-          .replace(/^\*\*(.*?)\*\*$/, "$1")
+          .replace(/^\\(.?)\\*$/, "$1")
           .replace(/^###\s*(.*?)$/, "$1")
           .replace(/[:]*$/, "")
           .trim();
@@ -122,8 +122,8 @@ export const formatDescription = (description: string): React.ReactNode => {
       } else {
         // Regular content
         const cleanContent = part
-          .replace(/^\*\*.*?\*\*\s*/g, "")
-          .replace(/^###\s*.*?\s*/g, "")
+          .replace(/^\\.?\\\s/g, "")
+          .replace(/^###\s*.?\s/g, "")
           .replace(/\s+/g, " ")
           .trim();
 
@@ -155,16 +155,16 @@ export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
   let elementKey = 0;
 
   // Split by asterisk patterns (*, **, ***) followed by content
-  const parts = analysis.split(/(\*{1,3}\s*\*?\*?[^*]*?)(?=\s*\*{1,3}|$)/g);
+  const parts = analysis.split(/(\{1,3}\s\?\?[^]?)(?=\s*\*{1,3}|$)/g);
 
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]?.trim();
     if (!part) continue;
 
     // Check for different levels of asterisk formatting
-    if (part.match(/^\*{3,}\s*\*?\*?(.*?):\s*(.*)/s)) {
-      // Triple asterisk with colon (***Section:** content)
-      const match = part.match(/^\*{3,}\s*\*?\*?(.*?):\s*(.*)/s);
+    if (part.match(/^\{3,}\s\?\?(.?):\s(.*)/s)) {
+      // Triple asterisk with colon (Section:* content)
+      const match = part.match(/^\{3,}\s\?\?(.?):\s(.*)/s);
       if (match) {
         const [, header, content] = match;
         
@@ -179,9 +179,9 @@ export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
           </div>
         );
       }
-    } else if (part.match(/^\*{2}\s*(.*?):\s*(.*)/s)) {
-      // Double asterisk with colon (**Section:** content)
-      const match = part.match(/^\*{2}\s*(.*?):\s*(.*)/s);
+    } else if (part.match(/^\{2}\s(.?):\s(.*)/s)) {
+      // Double asterisk with colon (*Section:* content)
+      const match = part.match(/^\{2}\s(.?):\s(.*)/s);
       if (match) {
         const [, header, content] = match;
         
@@ -197,9 +197,9 @@ export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
           </div>
         );
       }
-    } else if (part.match(/^\*\s*(.*?):\s*(.*)/s)) {
-      // Single asterisk with colon (*Section:** content)
-      const match = part.match(/^\*\s*(.*?):\s*(.*)/s);
+    } else if (part.match(/^\\s(.?):\s(.*)/s)) {
+      // Single asterisk with colon (Section:* content)
+      const match = part.match(/^\\s(.?):\s(.*)/s);
       if (match) {
         const [, header, content] = match;
         
@@ -217,7 +217,7 @@ export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
       }
     } else if (part.match(/^\*{1,3}/)) {
       // Handle asterisk patterns without colons
-      const cleanContent = part.replace(/^\*{1,3}\s*/, "").trim();
+      const cleanContent = part.replace(/^\{1,3}\s/, "").trim();
       if (cleanContent) {
         // Determine styling based on asterisk count
         const asteriskCount = (part.match(/^\*+/) || [""])[0].length;
