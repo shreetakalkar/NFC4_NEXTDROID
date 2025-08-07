@@ -50,8 +50,10 @@ import {
   Users,
   ChevronDown,
   ChevronRight,
+  FileSearch,
+  Scale,
 } from "lucide-react";
-import { formatDescription } from "@/lib/descriptionFormatter";
+import { formatDescription, formatEvidenceAnalysis } from "@/lib/descriptionFormatter";
 import { useRouter } from "next/navigation";
 
 type CaseStatus = "pending" | "investigating" | "resolved";
@@ -82,6 +84,7 @@ interface Case {
   futureDate?: Date; // Optional field for future incidents
   normalizedName?: string; // Normalized harasser name for grouping
   evidence_analysis?: string; // Optional field for evidence analysis
+  justification?: string; // Optional field for justification
 }
 
 interface AggregatedCase {
@@ -442,6 +445,8 @@ export function CasesList({
             panicScore: data.panicScore,
             uid: data.uid,
             harasserName: harasserName,
+            evidence_analysis: data.evidence_analysis,
+            justification: data.justification,
             ...reporterInfo,
           };
 
@@ -781,16 +786,17 @@ export function CasesList({
                               <CardDescription className="text-gray-600 dark:text-gray-400">
                                 {formatDescription(case_.description)}
                               </CardDescription>
-                              {case_.evidence_analysis && (
-                                <div className="mt-3">
-                                  {" "}
-                                  {/* Adds a little space */}
-                                  <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200">
-                                    Evidence Analysis:
-                                  </h4>
-                                  <CardDescription className="text-gray-600 dark:text-gray-400">
-                                    {case_.evidence_analysis}
-                                  </CardDescription>
+                              {case_.justification && (
+                                <div className="space-y-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                                  <div className="flex items-center gap-2">
+                                    <Scale className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                    <h3 className="text-lg font-semibold text-green-800 dark:text-green-200">
+                                      Case Justification
+                                    </h3>
+                                  </div>
+                                  <div className="text-sm text-green-900 dark:text-green-100 leading-relaxed whitespace-pre-wrap">
+                                    {case_.justification}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -844,13 +850,13 @@ export function CasesList({
                                 </DialogTrigger>
                                 {selectedCase &&
                                   selectedCase.id === case_.id && (
-                                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                                       <DialogHeader>
                                         <DialogTitle>
-                                          Evidence Files
+                                          Case Evidence & Analysis
                                         </DialogTitle>
                                         <DialogDescription>
-                                          View case attachments for "
+                                          Comprehensive review for case "
                                           {selectedCase.name}"
                                           {selectedCase.harasserName && (
                                             <>
@@ -865,132 +871,154 @@ export function CasesList({
                                           )}
                                         </DialogDescription>
                                       </DialogHeader>
+
+                                      {/* Image Attachments */}
+                                      {selectedCase.attachmentImage &&
+                                        selectedCase.attachmentImage.length >
+                                          0 && (
+                                          <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                              <ImageIcon className="h-5 w-5" />
+                                              <h3 className="text-md font-medium">
+                                                Image Evidence (
+                                                {
+                                                  selectedCase.attachmentImage
+                                                    .length
+                                                }
+                                                )
+                                              </h3>
+                                            </div>
+                                            {selectedCase.attachmentImage.map(
+                                              (imageUrl, index) => (
+                                                <div
+                                                  key={`img-${index}`}
+                                                  className="bg-muted rounded-lg overflow-hidden border"
+                                                >
+                                                  <div className="relative w-full aspect-video">
+                                                    <img
+                                                      src={imageUrl}
+                                                      alt={`Image Evidence ${
+                                                        index + 1
+                                                      }`}
+                                                      className="w-full h-full object-contain rounded-lg"
+                                                      loading="lazy"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              )
+                                            )}
+                                          </div>
+                                        )}
+
+                                      {/* Video Attachments */}
+                                      {selectedCase.attachmentVideo &&
+                                        selectedCase.attachmentVideo.length >
+                                          0 && (
+                                          <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                              <Video className="h-5 w-5" />
+                                              <h3 className="text-md font-medium">
+                                                Video Evidence (
+                                                {
+                                                  selectedCase.attachmentVideo
+                                                    .length
+                                                }
+                                                )
+                                              </h3>
+                                            </div>
+                                            {selectedCase.attachmentVideo.map(
+                                              (videoUrl, index) => (
+                                                <div
+                                                  key={`vid-${index}`}
+                                                  className="bg-muted rounded-lg overflow-hidden border"
+                                                >
+                                                  <video
+                                                    src={videoUrl}
+                                                    controls
+                                                    className="w-full aspect-video rounded-lg"
+                                                    preload="metadata"
+                                                  >
+                                                    Your browser does not
+                                                    support the video tag.
+                                                  </video>
+                                                </div>
+                                              )
+                                            )}
+                                          </div>
+                                        )}
+
+                                      {/* Audio Attachments */}
+                                      {selectedCase.attachmentAudio &&
+                                        selectedCase.attachmentAudio.length >
+                                          0 && (
+                                          <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                              <Volume2 className="h-5 w-5" />
+                                              <h3 className="text-md font-medium">
+                                                Audio Evidence (
+                                                {
+                                                  selectedCase.attachmentAudio
+                                                    .length
+                                                }
+                                                )
+                                              </h3>
+                                            </div>
+                                            {selectedCase.attachmentAudio.map(
+                                              (audioUrl, index) => (
+                                                <div
+                                                  key={`aud-${index}`}
+                                                  className="bg-muted rounded-lg overflow-hidden border p-4"
+                                                >
+                                                  <audio
+                                                    src={audioUrl}
+                                                    controls
+                                                    className="w-full"
+                                                    preload="metadata"
+                                                  >
+                                                    Your browser does not
+                                                    support the audio tag.
+                                                  </audio>
+                                                </div>
+                                              )
+                                            )}
+                                          </div>
+                                        )}
                                       <div className="space-y-6 py-4">
-                                        {/* Image Attachments */}
-                                        {selectedCase.attachmentImage &&
-                                          selectedCase.attachmentImage.length >
-                                            0 && (
-                                            <div className="space-y-4">
-                                              <div className="flex items-center gap-2">
-                                                <ImageIcon className="h-5 w-5" />
-                                                <h3 className="text-md font-medium">
-                                                  Image Evidence (
-                                                  {
-                                                    selectedCase.attachmentImage
-                                                      .length
-                                                  }
-                                                  )
-                                                </h3>
-                                              </div>
-                                              {selectedCase.attachmentImage.map(
-                                                (imageUrl, index) => (
-                                                  <div
-                                                    key={`img-${index}`}
-                                                    className="bg-muted rounded-lg overflow-hidden border"
-                                                  >
-                                                    <div className="relative w-full aspect-video">
-                                                      <img
-                                                        src={imageUrl}
-                                                        alt={`Image Evidence ${
-                                                          index + 1
-                                                        }`}
-                                                        className="w-full h-full object-contain rounded-lg"
-                                                        loading="lazy"
-                                                      />
-                                                    </div>
-                                                  </div>
-                                                )
+                                        {/* Evidence Analysis Block */}
+                                        {selectedCase.evidence_analysis && (
+                                          <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                            <div className="flex items-center gap-2">
+                                              <FileSearch className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                              <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200">
+                                                Evidence Analysis
+                                              </h3>
+                                            </div>
+                                            <div className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed whitespace-pre-wrap">
+                                              {formatEvidenceAnalysis(
+                                                selectedCase.evidence_analysis
                                               )}
                                             </div>
-                                          )}
+                                          </div>
+                                        )}
 
-                                        {/* Video Attachments */}
-                                        {selectedCase.attachmentVideo &&
-                                          selectedCase.attachmentVideo.length >
-                                            0 && (
-                                            <div className="space-y-4">
-                                              <div className="flex items-center gap-2">
-                                                <Video className="h-5 w-5" />
-                                                <h3 className="text-md font-medium">
-                                                  Video Evidence (
-                                                  {
-                                                    selectedCase.attachmentVideo
-                                                      .length
-                                                  }
-                                                  )
-                                                </h3>
-                                              </div>
-                                              {selectedCase.attachmentVideo.map(
-                                                (videoUrl, index) => (
-                                                  <div
-                                                    key={`vid-${index}`}
-                                                    className="bg-muted rounded-lg overflow-hidden border"
-                                                  >
-                                                    <video
-                                                      src={videoUrl}
-                                                      controls
-                                                      className="w-full aspect-video rounded-lg"
-                                                      preload="metadata"
-                                                    >
-                                                      Your browser does not
-                                                      support the video tag.
-                                                    </video>
-                                                  </div>
-                                                )
-                                              )}
-                                            </div>
-                                          )}
-
-                                        {/* Audio Attachments */}
-                                        {selectedCase.attachmentAudio &&
-                                          selectedCase.attachmentAudio.length >
-                                            0 && (
-                                            <div className="space-y-4">
-                                              <div className="flex items-center gap-2">
-                                                <Volume2 className="h-5 w-5" />
-                                                <h3 className="text-md font-medium">
-                                                  Audio Evidence (
-                                                  {
-                                                    selectedCase.attachmentAudio
-                                                      .length
-                                                  }
-                                                  )
-                                                </h3>
-                                              </div>
-                                              {selectedCase.attachmentAudio.map(
-                                                (audioUrl, index) => (
-                                                  <div
-                                                    key={`aud-${index}`}
-                                                    className="bg-muted rounded-lg overflow-hidden border p-4"
-                                                  >
-                                                    <audio
-                                                      src={audioUrl}
-                                                      controls
-                                                      className="w-full"
-                                                      preload="metadata"
-                                                    >
-                                                      Your browser does not
-                                                      support the audio tag.
-                                                    </audio>
-                                                  </div>
-                                                )
-                                              )}
-                                            </div>
-                                          )}
-
-                                        {/* No attachments */}
-                                        {(!selectedCase.attachmentImage ||
-                                          selectedCase.attachmentImage
-                                            .length === 0) &&
+                                        {/* No content message */}
+                                        {!selectedCase.evidence_analysis &&
+                                          !selectedCase.justification &&
+                                          (!selectedCase.attachmentImage ||
+                                            selectedCase.attachmentImage
+                                              .length === 0) &&
                                           (!selectedCase.attachmentVideo ||
                                             selectedCase.attachmentVideo
                                               .length === 0) &&
                                           (!selectedCase.attachmentAudio ||
                                             selectedCase.attachmentAudio
                                               .length === 0) && (
-                                            <p className="text-sm text-muted-foreground text-center py-8">
-                                              No evidence provided
-                                            </p>
+                                            <div className="text-center py-8">
+                                              <p className="text-sm text-muted-foreground">
+                                                No evidence, analysis, or
+                                                justification provided
+                                              </p>
+                                            </div>
                                           )}
                                       </div>
                                     </DialogContent>

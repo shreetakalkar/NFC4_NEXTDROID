@@ -320,12 +320,12 @@ export default function PanicMap() {
               max: 0.5, // Lower max to make points more visible
               minOpacity: 0.2,
               gradient: {
-                0.0: "#FF7F00", // Orange Red
-                0.2: "#FF6600", // Red Orange
-                0.4: "#FF4500", // Orange Red
-                0.6: "#FF0000", // Red
-                0.8: "#DC143C", // Crimson
-                1.0: "#8B0000", // Dark Red
+                0.0: "#FF9933", // Light Orange
+                0.2: "#FF8820", // Bright Orange
+                0.4: "#FF7700", // Vibrant Orange
+                0.6: "#FF5500", // Orange Red
+                0.8: "#E55039", // Light Crimson
+                1.0: "#C0392B", // Lighter Dark Red
               },
             }}
           />
@@ -334,4 +334,3 @@ export default function PanicMap() {
     </div>
   );
 }
-
