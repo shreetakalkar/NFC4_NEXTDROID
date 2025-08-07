@@ -3,8 +3,16 @@ import React from "react";
 export const formatSectionContent = (content: string): React.ReactNode | null => {
   if (!content?.trim()) return null;
 
-  // Handle nested ** formatting within sections
-  const parts = content.split(/(\*\*.*?\*\*)/g);
+  // First, clean up asterisks more thoroughly
+  const cleanedContent = content
+    // Remove standalone asterisks that aren't part of markdown formatting
+    .replace(/\*+(?!\w)/g, '') // Remove asterisks not followed by word characters
+    .replace(/(?<!\w)\*+/g, '') // Remove asterisks not preceded by word characters
+    // Handle nested ** formatting within sections more carefully
+    .replace(/\*{3,}/g, '**') // Convert multiple asterisks to double asterisks
+    .trim();
+
+  const parts = cleanedContent.split(/(\*\*.*?\*\*)/g);
   const elements: React.ReactNode[] = [];
 
   for (let i = 0; i < parts.length; i++) {
@@ -12,10 +20,11 @@ export const formatSectionContent = (content: string): React.ReactNode | null =>
     if (!part) continue;
 
     if (part.match(/^\*\*(.*?)\*\*$/)) {
-      // Bold subsection
+      // Bold subsection - clean up the text inside
       const boldText = part
         .replace(/^\*\*(.*?)\*\*$/, "$1")
         .replace(/[:]*$/, "")
+        .replace(/\*+/g, '') // Remove any remaining asterisks
         .trim();
       if (boldText) {
         elements.push(
@@ -28,8 +37,11 @@ export const formatSectionContent = (content: string): React.ReactNode | null =>
         );
       }
     } else {
-      // Regular text
-      const cleanText = part.replace(/\s+/g, " ").trim();
+      // Regular text - clean up asterisks
+      const cleanText = part
+        .replace(/\*+/g, '') // Remove all remaining asterisks
+        .replace(/\s+/g, " ")
+        .trim();
       if (cleanText) {
         elements.push(
           <span
@@ -48,6 +60,7 @@ export const formatSectionContent = (content: string): React.ReactNode | null =>
   ) : null;
 };
 
+<<<<<<< Updated upstream
 export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
   if (!analysis?.trim()) return "No evidence analysis provided.";
 
@@ -155,22 +168,41 @@ export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
   ) : (
     "No evidence analysis provided."
   );
+=======
+// Enhanced function to clean text of asterisks and markdown artifacts
+const cleanMarkdownArtifacts = (text: string): string => {
+  return text
+    // Remove asterisks used for emphasis (both single and double)
+    .replace(/\*{1,3}([^*]*?)\*{1,3}/g, '$1')
+    // Remove any remaining standalone asterisks
+    .replace(/\*+/g, '')
+    // Clean up underscores used for emphasis
+    .replace(/_{1,3}([^_]*?)_{1,3}/g, '$1')
+    // Remove backticks
+    .replace(/`+([^`]*?)`+/g, '$1')
+    // Clean up excessive whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+>>>>>>> Stashed changes
 };
 
 export const formatDescription = (description: string): React.ReactNode => {
   if (!description) return "No description provided.";
 
+  // Pre-clean the description to remove problematic asterisks
+  const preCleanedDescription = cleanMarkdownArtifacts(description);
+  
   const elements: React.ReactNode[] = [];
   let elementKey = 0;
 
   // Check if it contains the user/AI format
   const hasUserAIFormat =
-    description.includes("--- USER'S INITIAL DESCRIPTION ---") ||
-    description.includes("--- AI-GENERATED SUMMARY ---");
+    preCleanedDescription.includes("--- USER'S INITIAL DESCRIPTION ---") ||
+    preCleanedDescription.includes("--- AI-GENERATED SUMMARY ---");
 
   if (hasUserAIFormat) {
     // Handle USER/AI format
-    const sections = description.split(/--- (.*?) ---/);
+    const sections = preCleanedDescription.split(/--- (.*?) ---/);
 
     for (let i = 0; i < sections.length; i++) {
       const section = sections[i]?.trim();
@@ -190,8 +222,9 @@ export const formatDescription = (description: string): React.ReactNode => {
           </div>
         );
       } else {
-        // Section content
-        const formattedContent = formatSectionContent(section);
+        // Section content - apply additional cleaning
+        const cleanedSection = cleanMarkdownArtifacts(section);
+        const formattedContent = formatSectionContent(cleanedSection);
         if (formattedContent) {
           elements.push(
             <div key={elementKey++} className="mb-3">
@@ -203,8 +236,8 @@ export const formatDescription = (description: string): React.ReactNode => {
     }
   } else {
     // Handle standard formats with ** or ### headers
-    // Split by both ** and ### patterns
-    const parts = description.split(/(\*\*.*?\*\*|###\s*.*?)(?=\n|$)/g);
+    // More careful splitting to preserve content
+    const parts = preCleanedDescription.split(/(\*\*.*?\*\*|###\s*.*?)(?=\n|$)/g);
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i]?.trim();
@@ -216,6 +249,7 @@ export const formatDescription = (description: string): React.ReactNode => {
           .replace(/^\*\*(.*?)\*\*$/, "$1")
           .replace(/^###\s*(.*?)$/, "$1")
           .replace(/[:]*$/, "")
+          .replace(/\*+/g, '') // Remove any remaining asterisks
           .trim();
 
         if (headerText) {
@@ -233,6 +267,7 @@ export const formatDescription = (description: string): React.ReactNode => {
         const cleanContent = part
           .replace(/^\*\*.*?\*\*\s*/g, "")
           .replace(/^###\s*.*?\s*/g, "")
+          .replace(/\*+/g, '') // Remove all asterisks
           .replace(/\s+/g, " ")
           .trim();
 
@@ -255,4 +290,45 @@ export const formatDescription = (description: string): React.ReactNode => {
   ) : (
     "No description provided."
   );
+};
+
+// Additional utility function for truncating formatted descriptions
+export const truncateFormattedDescription = (
+  description: string, 
+  maxLength: number = 200
+): React.ReactNode => {
+  if (!description) return "No description provided.";
+
+  // Convert to plain text for length checking
+  const plainText = cleanMarkdownArtifacts(description);
+  
+  if (plainText.length <= maxLength) {
+    return formatDescription(description);
+  }
+
+  // Truncate the plain text
+  const truncated = plainText.substring(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  const cutPoint = lastSpace > maxLength * 0.8 ? lastSpace : maxLength;
+  const truncatedText = plainText.substring(0, cutPoint) + '...';
+
+  return (
+    <div className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+      {truncatedText}
+    </div>
+  );
+};
+
+// Simple text-only version for cases where React nodes aren't needed
+export const formatDescriptionAsText = (description: string): string => {
+  if (!description) return "No description provided.";
+  
+  return cleanMarkdownArtifacts(description)
+    // Handle section headers
+    .replace(/--- (.*?) ---/g, '\n$1:\n')
+    .replace(/\*\*(.*?)\*\*/g, '$1:')
+    .replace(/###\s*(.*?)$/gm, '$1:')
+    // Clean up extra newlines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim() || "No description provided.";
 };
