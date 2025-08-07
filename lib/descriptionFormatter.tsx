@@ -3,16 +3,8 @@ import React from "react";
 export const formatSectionContent = (content: string): React.ReactNode | null => {
   if (!content?.trim()) return null;
 
-  // First, clean up asterisks more thoroughly
-  const cleanedContent = content
-    // Remove standalone asterisks that aren't part of markdown formatting
-    .replace(/\*+(?!\w)/g, '') // Remove asterisks not followed by word characters
-    .replace(/(?<!\w)\*+/g, '') // Remove asterisks not preceded by word characters
-    // Handle nested ** formatting within sections more carefully
-    .replace(/\*{3,}/g, '**') // Convert multiple asterisks to double asterisks
-    .trim();
-
-  const parts = cleanedContent.split(/(\*\*.*?\*\*)/g);
+  // Handle nested ** formatting within sections
+  const parts = content.split(/(\*\*.*?\*\*)/g);
   const elements: React.ReactNode[] = [];
 
   for (let i = 0; i < parts.length; i++) {
@@ -20,11 +12,10 @@ export const formatSectionContent = (content: string): React.ReactNode | null =>
     if (!part) continue;
 
     if (part.match(/^\*\*(.*?)\*\*$/)) {
-      // Bold subsection - clean up the text inside
+      // Bold subsection
       const boldText = part
         .replace(/^\*\*(.*?)\*\*$/, "$1")
         .replace(/[:]*$/, "")
-        .replace(/\*+/g, '') // Remove any remaining asterisks
         .trim();
       if (boldText) {
         elements.push(
@@ -37,11 +28,8 @@ export const formatSectionContent = (content: string): React.ReactNode | null =>
         );
       }
     } else {
-      // Regular text - clean up asterisks
-      const cleanText = part
-        .replace(/\*+/g, '') // Remove all remaining asterisks
-        .replace(/\s+/g, " ")
-        .trim();
+      // Regular text
+      const cleanText = part.replace(/\s+/g, " ").trim();
       if (cleanText) {
         elements.push(
           <span
@@ -58,6 +46,106 @@ export const formatSectionContent = (content: string): React.ReactNode | null =>
   return elements.length > 0 ? (
     <div className="space-y-1">{elements}</div>
   ) : null;
+};
+
+export const formatDescription = (description: string): React.ReactNode => {
+  if (!description) return "No description provided.";
+
+  const elements: React.ReactNode[] = [];
+  let elementKey = 0;
+
+  // Check if it contains the user/AI format
+  const hasUserAIFormat =
+    description.includes("--- USER'S INITIAL DESCRIPTION ---") ||
+    description.includes("--- AI-GENERATED SUMMARY ---");
+
+  if (hasUserAIFormat) {
+    // Handle USER/AI format
+    const sections = description.split(/--- (.*?) ---/);
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i]?.trim();
+      if (!section) continue;
+
+      if (
+        section.includes("USER'S INITIAL DESCRIPTION") ||
+        section.includes("AI-GENERATED SUMMARY")
+      ) {
+        // Section header
+        elements.push(
+          <div
+            key={elementKey++}
+            className="font-bold text-blue-700 dark:text-blue-300 text-sm uppercase tracking-wide mt-3 first:mt-0 mb-1 border-b border-blue-200 dark:border-blue-700 pb-1"
+          >
+            {section.replace(/'/g, "'")}
+          </div>
+        );
+      } else {
+        // Section content
+        const formattedContent = formatSectionContent(section);
+        if (formattedContent) {
+          elements.push(
+            <div key={elementKey++} className="mb-3">
+              {formattedContent}
+            </div>
+          );
+        }
+      }
+    }
+  } else {
+    // Handle standard formats with ** or ### headers
+    // Split by both ** and ### patterns
+    const parts = description.split(/(\*\*.*?\*\*|###\s*.*?)(?=\n|$)/g);
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]?.trim();
+      if (!part) continue;
+
+      if (part.match(/^\*\*(.*?)\*\*$/) || part.match(/^###\s*(.*?)$/)) {
+        // Header section
+        const headerText = part
+          .replace(/^\*\*(.*?)\*\*$/, "$1")
+          .replace(/^###\s*(.*?)$/, "$1")
+          .replace(/[:]*$/, "")
+          .trim();
+
+        if (headerText) {
+          elements.push(
+            <div
+              key={elementKey++}
+              className="font-semibold text-gray-900 dark:text-gray-100 mt-3 first:mt-0 mb-1 text-sm"
+            >
+              {headerText}
+            </div>
+          );
+        }
+      } else {
+        // Regular content
+        const cleanContent = part
+          .replace(/^\*\*.*?\*\*\s*/g, "")
+          .replace(/^###\s*.*?\s*/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        if (cleanContent) {
+          elements.push(
+            <div
+              key={elementKey++}
+              className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-2"
+            >
+              {cleanContent}
+            </div>
+          );
+        }
+      }
+    }
+  }
+
+  return elements.length > 0 ? (
+    <div className="space-y-1">{elements}</div>
+  ) : (
+    "No description provided."
+  );
 };
 
 export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
@@ -167,151 +255,4 @@ export const formatEvidenceAnalysis = (analysis: string): React.ReactNode => {
   ) : (
     "No evidence analysis provided."
   );
-};
-
-export const formatDescription = (description: string): React.ReactNode => {
-  if (!description) return "No description provided.";
-
-  // Pre-clean the description to remove problematic asterisks
-  const preCleanedDescription = cleanMarkdownArtifacts(description);
-  
-  const elements: React.ReactNode[] = [];
-  let elementKey = 0;
-
-  // Check if it contains the user/AI format
-  const hasUserAIFormat =
-    preCleanedDescription.includes("--- USER'S INITIAL DESCRIPTION ---") ||
-    preCleanedDescription.includes("--- AI-GENERATED SUMMARY ---");
-
-  if (hasUserAIFormat) {
-    // Handle USER/AI format
-    const sections = preCleanedDescription.split(/--- (.*?) ---/);
-
-    for (let i = 0; i < sections.length; i++) {
-      const section = sections[i]?.trim();
-      if (!section) continue;
-
-      if (
-        section.includes("USER'S INITIAL DESCRIPTION") ||
-        section.includes("AI-GENERATED SUMMARY")
-      ) {
-        // Section header
-        elements.push(
-          <div
-            key={elementKey++}
-            className="font-bold text-blue-700 dark:text-blue-300 text-sm uppercase tracking-wide mt-3 first:mt-0 mb-1 border-b border-blue-200 dark:border-blue-700 pb-1"
-          >
-            {section.replace(/'/g, "'")}
-          </div>
-        );
-      } else {
-        // Section content - apply additional cleaning
-        const cleanedSection = cleanMarkdownArtifacts(section);
-        const formattedContent = formatSectionContent(cleanedSection);
-        if (formattedContent) {
-          elements.push(
-            <div key={elementKey++} className="mb-3">
-              {formattedContent}
-            </div>
-          );
-        }
-      }
-    }
-  } else {
-    // Handle standard formats with ** or ### headers
-    // More careful splitting to preserve content
-    const parts = preCleanedDescription.split(/(\*\*.*?\*\*|###\s*.*?)(?=\n|$)/g);
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i]?.trim();
-      if (!part) continue;
-
-      if (part.match(/^\*\*(.*?)\*\*$/) || part.match(/^###\s*(.*?)$/)) {
-        // Header section
-        const headerText = part
-          .replace(/^\*\*(.*?)\*\*$/, "$1")
-          .replace(/^###\s*(.*?)$/, "$1")
-          .replace(/[:]*$/, "")
-          .replace(/\*+/g, '') // Remove any remaining asterisks
-          .trim();
-
-        if (headerText) {
-          elements.push(
-            <div
-              key={elementKey++}
-              className="font-semibold text-gray-900 dark:text-gray-100 mt-3 first:mt-0 mb-1 text-sm"
-            >
-              {headerText}
-            </div>
-          );
-        }
-      } else {
-        // Regular content
-        const cleanContent = part
-          .replace(/^\*\*.*?\*\*\s*/g, "")
-          .replace(/^###\s*.*?\s*/g, "")
-          .replace(/\*+/g, '') // Remove all asterisks
-          .replace(/\s+/g, " ")
-          .trim();
-
-        if (cleanContent) {
-          elements.push(
-            <div
-              key={elementKey++}
-              className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-2"
-            >
-              {cleanContent}
-            </div>
-          );
-        }
-      }
-    }
-  }
-
-  return elements.length > 0 ? (
-    <div className="space-y-1">{elements}</div>
-  ) : (
-    "No description provided."
-  );
-};
-
-// Additional utility function for truncating formatted descriptions
-export const truncateFormattedDescription = (
-  description: string, 
-  maxLength: number = 200
-): React.ReactNode => {
-  if (!description) return "No description provided.";
-
-  // Convert to plain text for length checking
-  const plainText = cleanMarkdownArtifacts(description);
-  
-  if (plainText.length <= maxLength) {
-    return formatDescription(description);
-  }
-
-  // Truncate the plain text
-  const truncated = plainText.substring(0, maxLength);
-  const lastSpace = truncated.lastIndexOf(' ');
-  const cutPoint = lastSpace > maxLength * 0.8 ? lastSpace : maxLength;
-  const truncatedText = plainText.substring(0, cutPoint) + '...';
-
-  return (
-    <div className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-      {truncatedText}
-    </div>
-  );
-};
-
-// Simple text-only version for cases where React nodes aren't needed
-export const formatDescriptionAsText = (description: string): string => {
-  if (!description) return "No description provided.";
-  
-  return cleanMarkdownArtifacts(description)
-    // Handle section headers
-    .replace(/--- (.*?) ---/g, '\n$1:\n')
-    .replace(/\*\*(.*?)\*\*/g, '$1:')
-    .replace(/###\s*(.*?)$/gm, '$1:')
-    // Clean up extra newlines
-    .replace(/\n{3,}/g, '\n\n')
-    .trim() || "No description provided.";
 };
